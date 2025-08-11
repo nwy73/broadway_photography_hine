@@ -1,43 +1,141 @@
 <!DOCTYPE html>
 <html>
-
 <head>
-  <title>Broadway</title>
+  <title>Tilesource over Paper with Voyager Underneath</title>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha384-sHL9NAb7lN7rfvG5lfHpm643Xkcjzp4jFvuavGOndn6pjVqS6ny56CAt3nsEVT4H" crossorigin="" />
-  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha384-cxOPjt7s7Iz04uaHJceBmS+qpjv2JkIHNVcuOrM+YHwZOmJGBXI00mdUXEq65HTH" crossorigin=""></script>
-  <style type="text/css">
-    body {
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  
+  <!-- Leaflet CSS & JS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+  <!-- Font -->
+  <link href="https://fonts.googleapis.com/css2?family=Jacques+Francois&display=swap" rel="stylesheet">
+
+  <style>
+    html, body, #map {
+      height: 100%;
       margin: 0;
       padding: 0;
     }
 
-    html,
-    body,
     #map {
+      /* Paper background */
+      background-color: #f9f7f1;
+      background-image: url('https://www.transparenttextures.com/patterns/paper-fibers.png');
+      background-repeat: repeat;
+    }
+
+    #opacity-slider {
+      font-family: 'Jacques Francois', serif;
+      background-color: #f9f7f1;
+      border: 1px solid #ccc;
+      padding: 12px;
+      width: 220px;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.1);
+      border-radius: 6px;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+    }
+
+    #opacity-slider label {
+      font-size: 14px;
+      color: #333;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    #opacity-slider span {
+      font-weight: normal;
+      font-style: italic;
+      color: #555;
+    }
+
+    input[type=range] {
+      -webkit-appearance: none;
       width: 100%;
-      height: 100%;
+      height: 6px;
+      background: #ddd;
+      border-radius: 3px;
+      outline: none;
+    }
+
+    input[type=range]::-webkit-slider-runnable-track {
+      height: 6px;
+      background: #bbb;
+      border-radius: 3px;
+    }
+
+    input[type=range]::-moz-range-track {
+      height: 6px;
+      background: #bbb;
+      border-radius: 3px;
+    }
+
+    input[type=range]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 14px;
+      height: 14px;
+      background: #444;
+      border: 1px solid #999;
+      border-radius: 50%;
+      cursor: pointer;
+      margin-top: -4px;
+    }
+
+    input[type=range]::-moz-range-thumb {
+      width: 14px;
+      height: 14px;
+      background: #444;
+      border: 1px solid #999;
+      border-radius: 50%;
+      cursor: pointer;
     }
   </style>
 </head>
-
 <body>
   <div id="map"></div>
+
+  <div id="opacity-slider">
+    <label for="slider">Layer Opacity: <span id="opacity-value">100%</span></label>
+    <input type="range" id="slider" min="0" max="100" value="100" />
+  </div>
+
   <script>
-    var map = L.map('map', {
-      attributionControl: false
-    }).setView([40.7886, -73.9647], 15);
-    L.control.attribution({
-      prefix: false
+    // Initialize map
+    const map = L.map('map', { attributionControl: false }).setView([40.7886, -73.9600], 12);
+    L.control.attribution({ prefix: false }).addTo(map);
+
+    // Voyager base tiles
+    const voyager = L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a>',
+      subdomains: 'abcd',
+      maxZoom: 19,
+      opacity: 0  // start invisible
     }).addTo(map);
-    var tilesource_layer = L.tileLayer('tiles/{z}/{x}/{y}.png', {
+
+    // Tilesource layer on top
+    const tilesource_layer = L.tileLayer('tiles/{z}/{x}/{y}.png', {
       minZoom: 12,
       maxZoom: 18,
-      tms: false,
-      attribution: 'Created by QGIS'
+      attribution: 'Created by QGIS',
+      opacity: 1
     }).addTo(map);
+
+    // Slider references
+    const slider = document.getElementById("slider");
+    const opacityValueLabel = document.getElementById("opacity-value");
+
+    // Sync opacity: tilesource opacity = slider value, voyager opacity = inverse
+    slider.addEventListener("input", () => {
+      const opacity = slider.value / 100;
+      tilesource_layer.setOpacity(opacity);
+      voyager.setOpacity(1 - opacity);
+      opacityValueLabel.textContent = Math.round(opacity * 100) + "%";
+    });
   </script>
 </body>
-
 </html>
