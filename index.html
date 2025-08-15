@@ -94,6 +94,12 @@
       border-radius: 50%;
       cursor: pointer;
     }
+
+    .leaflet-tile {
+      image-rendering: pixelated; /* or crisp-edges */
+      background-color: transparent;
+    }
+
   </style>
 </head>
 <body>
@@ -117,8 +123,20 @@
       opacity: 0  // start invisible
     }).addTo(map);
 
+    // Simple heuristics
+    const isNarrow = Math.min(window.innerWidth, window.innerHeight) < 820; // tablet/phone-ish
+    const isHiDPI = window.devicePixelRatio && window.devicePixelRatio >= 2;
+
+    // Choose directory — prioritize density over width
+    const useMobileTiles = isHiDPI || isNarrow;
+
+    // Different tiles for mobile/retina vs desktop
+    const tileTemplate = useMobileTiles
+      ? 'retina-tiles/{z}/{x}/{y}.png'   // exported with higher DPI / more buffer or baked raster
+      : 'tiles/{z}/{x}/{y}.png'; // standard export
+
     // Tilesource layer on top
-    const tilesource_layer = L.tileLayer('tiles/{z}/{x}/{y}.png', {
+    const tilesource_layer = L.tileLayer(tileTemplate, {
       minZoom: 12,
       maxZoom: 18,
       attribution: 'Created by QGIS',
