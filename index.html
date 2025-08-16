@@ -123,17 +123,16 @@
       opacity: 0  // start invisible
     }).addTo(map);
 
-    // Simple heuristics
-    const isNarrow = Math.min(window.innerWidth, window.innerHeight) < 820; // tablet/phone-ish
-    const isHiDPI = window.devicePixelRatio && window.devicePixelRatio >= 2;
+    // Determine if device is narrow (tablet or smaller)
+    const isTabletOrSmaller = window.matchMedia("(max-width: 819px)").matches;
 
-    // Choose directory — prioritize density over width
-    const useMobileTiles = isHiDPI || isNarrow;
+    // Use mobile tiles only on smaller screens
+    const useMobileTiles = isTabletOrSmaller;
 
     // Different tiles for mobile/retina vs desktop
     const tileTemplate = useMobileTiles
-      ? 'retina-tiles/{z}/{x}/{y}.png'   // exported with higher DPI / more buffer or baked raster
-      : 'tiles/{z}/{x}/{y}.png'; // standard export
+      ? 'tiles-solid/{z}/{x}/{y}.png'   // exported with higher DPI / more buffer or baked raster
+      : 'tiles-stipple/{z}/{x}/{y}.png'; // standard export
 
     // Tilesource layer on top
     const tilesource_layer = L.tileLayer(tileTemplate, {
