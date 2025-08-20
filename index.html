@@ -96,7 +96,7 @@
     }
 
     .leaflet-tile {
-      image-rendering: pixelated; /* or crisp-edges */
+      image-rendering: auto;
       background-color: transparent;
     }
 
@@ -129,10 +129,10 @@
     // Use mobile tiles only on smaller screens
     const useMobileTiles = isTabletOrSmaller;
 
-    // Different tiles for mobile/retina vs desktop
+    // Different tiles for different screen sizes
     const tileTemplate = useMobileTiles
-      ? 'tiles-solid/{z}/{x}/{y}.png'   // exported with higher DPI / more buffer or baked raster
-      : 'tiles-stipple/{z}/{x}/{y}.png'; // standard export
+      ? 'tiles-solid/{z}/{x}/{y}.png'
+      : 'tiles-stipple/{z}/{x}/{y}.png';
 
     // Tilesource layer on top
     const tilesource_layer = L.tileLayer(tileTemplate, {
