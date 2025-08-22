@@ -1,0 +1,40 @@
+{
+  "families": [
+    {
+      "name": "Modern No. 20 Regular",
+      "variants": [
+        {
+          "style": "Regular",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "name": "Monotype Corsiva Regular",
+      "variants": [
+        {
+          "style": "Regular",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "name": "Palatino Linotype Regular",
+      "variants": [
+        {
+          "style": "Regular",
+          "weight": 400
+        }
+      ]
+    },
+    {
+      "name": "Perpetua Regular",
+      "variants": [
+        {
+          "style": "Regular",
+          "weight": 400
+        }
+      ]
+    }
+  ]
+}
