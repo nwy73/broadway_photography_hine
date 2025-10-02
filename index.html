@@ -31,19 +31,51 @@
       z-index: 0;
     }
 
-    #opacity-slider {
+    #slider-container {
       font-family: 'Jacques Francois', serif;
       background-color: #f9f7f1;
       border: 1px solid #ccc;
       padding: 12px;
-      width: 220px;
+      width: 280px;
       box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
       border-radius: 6px;
       position: absolute;
       top: 10px;
       right: 10px;
       z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
     }
+
+    #opacity-slider label,
+    #time-slider label {
+      display: block;
+      font-size: 0.9em;
+      margin-bottom: 6px;
+      color: #555;
+    }
+
+    input[type="range"] {
+      width: 100%;
+    }
+
+    /* Labels left and right of slider */
+    #opacity-labels {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.9em;
+      margin-bottom: 6px;
+      user-select: none;
+      color: #555;
+    }
+
+    #time-year {
+      font-size: 0.9em;
+      margin-left: 8px;
+      color: #555;
+    }
+
   </style>
 </head>
 
@@ -52,9 +84,20 @@
     <div id="map"></div>
   </div>
 
-  <div id="opacity-slider">
-    <label for="slider">Layer Opacity: <span id="opacity-value">100%</span></label>
-    <input type="range" id="slider" min="0" max="100" value="100" />
+  <div id="slider-container">
+    <div id="opacity-slider">
+      <div id="opacity-labels">
+        <span>Historic Map</span>
+        <span>Contemporary Map</span>
+      </div>
+      <input type="range" id="slider" min="0" max="100" value="0" />
+    </div>
+
+    <div id="time-slider">
+      <label for="time-slider-input">Historic Progression of Broadway</label>
+      <input type="range" id="time-slider-input" min="1776" max="1906" value="1776" step="1" />
+      <span id="time-year">1776</span>
+    </div>
   </div>
 
   <script src="https://unpkg.com/maplibre-gl@^5.6.2/dist/maplibre-gl.js"></script>
@@ -68,89 +111,155 @@
 
     map.addControl(new maplibregl.NavigationControl(), 'top-left');
 
+    // Global variable to store the original GeoJSON
+    let originalGeoJsonData = null;
+
     map.on('load', () => {
 
-map.addSource('voyager', {
-  type: 'raster',
-  tiles: [
-    'https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'
-  ],
-  tileSize: 256
-});
-
-map.addLayer({
-  id: 'voyager-raster-layer',
-  type: 'raster',
-  source: 'voyager',
-  paint: {
-    'raster-opacity': 0  // start fully transparent
-  }
-}, 'paper-fibers-layer');  // insert under paper-fibers-layer or wherever you want in the stack
-
+      const timeSlider = document.getElementById('time-slider-input');
+      const timeYear = document.getElementById('time-year');
       const slider = document.getElementById("slider");
-      const opacityValueLabel = document.getElementById("opacity-value");
 
+      timeSlider.value = 1776;
+      timeYear.textContent = '1776';
+
+      // Add Voyager raster layer
+      map.addSource('voyager', {
+        type: 'raster',
+        tiles: ['https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png'],
+        tileSize: 256
+      });
+
+      map.addLayer({
+        id: 'voyager-raster-layer',
+        type: 'raster',
+        source: 'voyager',
+        paint: {
+          'raster-opacity': 1  // start fully visible (contemporary)
+        }
+      }, 'paper-fibers-layer');
+
+      // Load Broadway_History.geojson via fetch to preserve original data
+      fetch('overlays/Broadway_History.geojson')
+        .then(response => response.json())
+        .then(data => {
+          originalGeoJsonData = data; // Store original full data
+
+          const initialYear = parseInt(timeSlider.value, 10);
+          const filteredGeoJson = filterByYear(initialYear);
+
+          map.addSource('broadway-history', {
+            type: 'geojson',
+            data: filteredGeoJson
+          });
+
+          map.addLayer({
+            id: 'broadway-history-layer',
+            type: 'line',
+            source: 'broadway-history',
+            paint: {
+              'line-color': '#8B5E3C',
+              'line-width': 3,
+              'line-opacity': 1
+            }
+          });
+        });
+
+      // Store original opacities for layers
       const originalOpacities = {};
-      map.getStyle().layers.forEach(layer => {
-        const {
-          id,
-          source,
-          type
-        } = layer;
 
-        if (source === 'broadway') {
-          const props = {};
-          if (type === 'fill') {
-            const opacity = map.getPaintProperty(id, 'fill-opacity');
-            props['fill-opacity'] = opacity !== undefined ? opacity : 1;
-          } else if (type === 'line') {
-            const opacity = map.getPaintProperty(id, 'line-opacity');
-            props['line-opacity'] = opacity !== undefined ? opacity : 1;
-          } else if (type === 'symbol') {
-            const textOpacity = map.getPaintProperty(id, 'text-opacity');
-            const iconOpacity = map.getPaintProperty(id, 'icon-opacity');
+      map.once('idle', () => {
+        map.getStyle().layers.forEach(layer => {
+          const { id, source, type } = layer;
 
-            props['text-opacity'] = textOpacity !== undefined ? textOpacity : 1;
-            props['icon-opacity'] = iconOpacity !== undefined ? iconOpacity : 1;
+          if (source === 'broadway') {
+            const props = {};
+            if (type === 'fill') {
+              const opacity = map.getPaintProperty(id, 'fill-opacity');
+              props['fill-opacity'] = opacity !== undefined ? opacity : 1;
+            } else if (type === 'line') {
+              const opacity = map.getPaintProperty(id, 'line-opacity');
+              props['line-opacity'] = opacity !== undefined ? opacity : 1;
+            } else if (type === 'symbol') {
+              const textOpacity = map.getPaintProperty(id, 'text-opacity');
+              const iconOpacity = map.getPaintProperty(id, 'icon-opacity');
+              props['text-opacity'] = textOpacity !== undefined ? textOpacity : 1;
+              props['icon-opacity'] = iconOpacity !== undefined ? iconOpacity : 1;
+            }
+            if (Object.keys(props).length) {
+              originalOpacities[id] = props;
+            }
           }
 
-          if (Object.keys(props).length) {
-            originalOpacities[id] = props;
+          if (id === 'paper-fibers-layer' && type === 'raster') {
+            const rasterOpacity = map.getPaintProperty(id, 'raster-opacity');
+            originalOpacities[id] = {
+              'raster-opacity': rasterOpacity !== undefined ? rasterOpacity : 1
+            };
           }
+        });
+
+        // Initialize slider value at 0 (full historic opacity)
+        // multiplier is 1 - slider.value/100
+        const multiplier = 1 - (slider.value / 100);
+
+        Object.entries(originalOpacities).forEach(([layerId, props]) => {
+          if (layerId === 'voyager-raster-layer') return;
+
+          Object.entries(props).forEach(([property, originalValue]) => {
+            map.setPaintProperty(layerId, property, originalValue * multiplier);
+          });
+        });
+
+        // Voyager opacity inverse
+        const voyagerOpacity = 1 - multiplier;
+        if (map.getLayer('voyager-raster-layer')) {
+          map.setPaintProperty('voyager-raster-layer', 'raster-opacity', voyagerOpacity);
         }
 
-        // Handle the paper raster layer:
-        if (id === 'paper-fibers-layer' && type === 'raster') {
-          const rasterOpacity = map.getPaintProperty(id, 'raster-opacity');
-          originalOpacities[id] = {
-            'raster-opacity': rasterOpacity !== undefined ? rasterOpacity : 1
-          };
+      });
+
+      slider.addEventListener("input", () => {
+        const value = parseInt(slider.value, 10);
+        const multiplier = 1 - (value / 100);
+
+        Object.entries(originalOpacities).forEach(([layerId, props]) => {
+          if (layerId === 'voyager-raster-layer') return;
+
+          Object.entries(props).forEach(([property, originalValue]) => {
+            map.setPaintProperty(layerId, property, originalValue * multiplier);
+          });
+        });
+
+        const voyagerOpacity = 1 - multiplier;
+        if (map.getLayer('voyager-raster-layer')) {
+          map.setPaintProperty('voyager-raster-layer', 'raster-opacity', voyagerOpacity);
         }
       });
 
-slider.addEventListener("input", () => {
-  const value = slider.value;
-  const multiplier = value / 100;
-  opacityValueLabel.textContent = `${value}%`;
+      timeSlider.addEventListener('input', () => {
+        const year = parseInt(timeSlider.value, 10);
+        timeYear.textContent = `${year}`;
 
-  // Update other layers opacity
-  Object.entries(originalOpacities).forEach(([layerId, props]) => {
-    // Skip Voyager layer here if you add it to originalOpacities
-    if (layerId === 'voyager-raster-layer') return;
-
-    Object.entries(props).forEach(([property, originalValue]) => {
-      map.setPaintProperty(layerId, property, originalValue * multiplier);
+        if (map.getSource('broadway-history')) {
+          map.getSource('broadway-history').setData(filterByYear(year));
+        }
+      });
     });
-  });
 
-  // Set Voyager opacity inversely
-  const voyagerOpacity = 1 - multiplier;
-  if (map.getLayer('voyager-raster-layer')) {
-    map.setPaintProperty('voyager-raster-layer', 'raster-opacity', voyagerOpacity);
-  }
-});
+    function filterByYear(year) {
+      if (!originalGeoJsonData) return { type: 'FeatureCollection', features: [] };
 
-    });
+      const filteredFeatures = originalGeoJsonData.features.filter(feature => {
+        const { syear, eyear } = feature.properties;
+        return year >= syear && year <= eyear;
+      });
+
+      return {
+        type: 'FeatureCollection',
+        features: filteredFeatures
+      };
+    }
   </script>
 </body>
 
