@@ -6,6 +6,7 @@
   <title>Broadway Vector Tiles</title>
   <link href="https://unpkg.com/maplibre-gl@^5.6.2/dist/maplibre-gl.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Jacques+Francois&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;700&display=swap" rel="stylesheet">
   <style>
     body,
     html {
@@ -75,7 +76,6 @@
       margin-left: 8px;
       color: #555;
     }
-
   </style>
 </head>
 
@@ -114,7 +114,45 @@
     // Global variable to store the original GeoJSON
     let originalGeoJsonData = null;
 
-    map.on('load', () => {
+    async function loadSVGAsImage(name, url) {
+      // Fetch the SVG text 
+      const response = await fetch(url);
+      const svgText = await response.text(); // Create an image 
+      const img = new Image();
+      const svgBlob = new Blob([svgText], {
+        type: "image/svg+xml"
+      });
+      const urlCreator = URL.createObjectURL(svgBlob);
+      return new Promise((resolve, reject) => {
+        img.onload = async () => {
+          // Create a square canvas using the SVG's viewBox 
+          const canvas = document.createElement("canvas"); // Make canvas square using max dimension of SVG viewBox 
+          const viewBoxMatch = svgText.match(/viewBox="([\d.\s]+)"/);
+          let size = 64; // default 
+          if (viewBoxMatch) {
+            const [minX, minY, width, height] = viewBoxMatch[1].split(" ").map(Number);
+            size = Math.max(width, height);
+          }
+          canvas.width = size;
+          canvas.height = size;
+          const ctx = canvas.getContext("2d"); // Draw the SVG centered in canvas 
+          ctx.drawImage(img, 0, 0, size, size);
+          const bitmap = await createImageBitmap(canvas); // Add to MapLibre 
+          if (!map.hasImage(name)) {
+            map.addImage(name, bitmap, {
+              pixelRatio: 1
+            });
+          }
+          URL.revokeObjectURL(urlCreator);
+          resolve();
+        };
+        img.onerror = reject;
+        img.src = urlCreator;
+      });
+    }
+
+    // --- CONSOLIDATED MAP ON 'LOAD' HANDLER ---
+    map.on('load', async () => {
 
       const timeSlider = document.getElementById('time-slider-input');
       const timeYear = document.getElementById('time-year');
@@ -122,6 +160,11 @@
 
       timeSlider.value = 1776;
       timeYear.textContent = '1776';
+      slider.value = 0;
+
+      // ===================================
+      // 1. ADD BASE MAPS AND BROADWAY HISTORY
+      // ===================================
 
       // Add Voyager raster layer
       map.addSource('voyager', {
@@ -135,11 +178,12 @@
         type: 'raster',
         source: 'voyager',
         paint: {
-          'raster-opacity': 1  // start fully visible (contemporary)
+          'raster-opacity': 0 // start fully transparent
         }
       }, 'paper-fibers-layer');
 
       // Load Broadway_History.geojson via fetch to preserve original data
+      // Note: This fetch/layer addition is asynchronous.
       fetch('overlays/Broadway_History.geojson')
         .then(response => response.json())
         .then(data => {
@@ -165,14 +209,188 @@
           });
         });
 
+      // 2. ADD CAMERA ICONS (Photos Layer)
+      // ===================================
+
+      await loadSVGAsImage("camera", "svg/camera.svg");
+
+      map.addSource("photos", {
+        type: "geojson",
+        data: "overlays/photos.geojson"
+      }); // Add empty hover layer 
+      map.addSource("photos-hover", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: []
+        }
+      });
+
+      map.addLayer({
+        id: "photos-layer",
+        type: "symbol",
+        source: "photos",
+        layout: {
+          "icon-image": "camera", // fixed
+          "icon-size": ["interpolate", ["linear"],
+            ["zoom"], 10, 0.015, 15, 0.05
+          ],
+          "icon-allow-overlap": false,
+          "icon-anchor": "center",
+          "icon-rotate": ["+", ["get", "orientation"], 180]
+        },
+        paint: {
+          "icon-opacity": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            0.5, // opacity on hover
+            1 // default opacity
+          ]
+        }
+      });
+
+      let hoveredFeatureId = null;
+
+      map.on('mousemove', 'photos-layer', (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ['photos-layer']
+        });
+
+        if (!features.length) {
+          // Mouse is not over any feature
+          if (hoveredFeatureId !== null) {
+            map.setFeatureState({
+              source: 'photos',
+              id: hoveredFeatureId
+            }, {
+              hover: false
+            });
+            hoveredFeatureId = null;
+          }
+          map.getCanvas().style.cursor = '';
+          return;
+        }
+
+        const feature = features[0];
+
+        // Only update if the hovered feature changed
+        if (hoveredFeatureId !== feature.id) {
+          if (hoveredFeatureId !== null) {
+            map.setFeatureState({
+              source: 'photos',
+              id: hoveredFeatureId
+            }, {
+              hover: false
+            });
+          }
+
+          hoveredFeatureId = feature.id;
+          map.setFeatureState({
+            source: 'photos',
+            id: hoveredFeatureId
+          }, {
+            hover: true
+          });
+        }
+
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      // Optional: reset hover state if the mouse leaves the map entirely
+      map.on('mouseleave', 'photos-layer', () => {
+        if (hoveredFeatureId !== null) {
+          map.setFeatureState({
+            source: 'photos',
+            id: hoveredFeatureId
+          }, {
+            hover: false
+          });
+          hoveredFeatureId = null;
+        }
+        map.getCanvas().style.cursor = '';
+      });
+
+      map.on('click', 'photos-layer', (e) => {
+        const feature = e.features[0];
+        const thumbUrl = feature.properties.thumbs || '';
+        const fullUrl = feature.properties.full || '';
+        const title = feature.properties.title || '';
+
+        // Remove any existing popup
+        if (window.currentPopup) {
+          window.currentPopup.remove();
+        }
+
+        // Create popup container
+        const popupContainer = document.createElement('div');
+        popupContainer.style.maxWidth = '200px';
+        popupContainer.style.fontFamily = "'Fraunces', serif";
+        popupContainer.style.textAlign = 'left';
+        popupContainer.style.lineHeight = '1.3';
+        popupContainer.style.backgroundColor = '#f9f7f1'; // matches slider background
+        popupContainer.style.padding = '8px';
+        popupContainer.style.borderRadius = '6px';
+        popupContainer.style.boxShadow = '2px 2px 6px rgba(0,0,0,0.1)';
+
+        // Create image element
+        const img = document.createElement('img');
+        img.style.width = '100%'; // image fills popup width
+        img.style.height = 'auto';
+        img.style.borderRadius = '4px';
+        img.style.cursor = fullUrl ? 'pointer' : 'default';
+        img.src = thumbUrl; // default placeholder
+
+        // Wrap in link if full image exists
+        if (fullUrl) {
+          const link = document.createElement('a');
+          link.href = fullUrl;
+          link.target = '_blank';
+          link.rel = 'noopener noreferrer';
+          link.appendChild(img);
+          popupContainer.appendChild(link);
+        } else {
+          popupContainer.appendChild(img);
+        }
+
+        // Create title element
+        const titleDiv = document.createElement('div');
+        titleDiv.style.marginTop = '4px';
+        titleDiv.style.fontSize = '12px';
+        titleDiv.style.color = '#333';
+        titleDiv.style.wordWrap = 'break-word';
+        titleDiv.style.overflowWrap = 'break-word';
+        titleDiv.textContent = title;
+        popupContainer.appendChild(titleDiv);
+
+        // Create and show popup
+        const popup = new maplibregl.Popup({
+            offset: 15
+          })
+          .setLngLat(feature.geometry.coordinates)
+          .setDOMContent(popupContainer)
+          .addTo(map);
+
+        window.currentPopup = popup;
+      });
+
+
+      // ===================================
+      // 3. OPACITY SLIDER LOGIC
+      // ===================================
+
       // Store original opacities for layers
       const originalOpacities = {};
 
+      // Use map.once('idle') to ensure all layers from style.json are present
       map.once('idle', () => {
         map.getStyle().layers.forEach(layer => {
-          const { id, source, type } = layer;
+          const {
+            id,
+            source,
+            type
+          } = layer;
 
-          if (source === 'broadway') {
+          if (source === 'broadway') { // assuming 'broadway' is the source from style.json
             const props = {};
             if (type === 'fill') {
               const opacity = map.getPaintProperty(id, 'fill-opacity');
@@ -199,8 +417,7 @@
           }
         });
 
-        // Initialize slider value at 0 (full historic opacity)
-        // multiplier is 1 - slider.value/100
+        // Initialization of opacity logic
         const multiplier = 1 - (slider.value / 100);
 
         Object.entries(originalOpacities).forEach(([layerId, props]) => {
@@ -218,6 +435,10 @@
         }
 
       });
+
+      // ===================================
+      // 4. SLIDER EVENT LISTENERS
+      // ===================================
 
       slider.addEventListener("input", () => {
         const value = parseInt(slider.value, 10);
@@ -246,12 +467,20 @@
         }
       });
     });
+    // --- END CONSOLIDATED MAP ON 'LOAD' HANDLER ---
+
 
     function filterByYear(year) {
-      if (!originalGeoJsonData) return { type: 'FeatureCollection', features: [] };
+      if (!originalGeoJsonData) return {
+        type: 'FeatureCollection',
+        features: []
+      };
 
       const filteredFeatures = originalGeoJsonData.features.filter(feature => {
-        const { syear, eyear } = feature.properties;
+        const {
+          syear,
+          eyear
+        } = feature.properties;
         return year >= syear && year <= eyear;
       });
 
