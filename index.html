@@ -8,6 +8,13 @@
   <link href="https://fonts.googleapis.com/css2?family=Jacques+Francois&display=swap" rel="stylesheet">
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;700&display=swap" rel="stylesheet">
   <style>
+    @font-face {
+      font-family: 'CGHine';
+      src: url('./font/CgHine-Regular.ttf') format('truetype');
+      font-weight: normal;
+      font-style: normal;
+    }
+
     body,
     html {
       margin: 0;
@@ -123,6 +130,7 @@
       line-height: 1.4;
       word-wrap: break-word;
       text-align: left;
+      font-family: 'CGHine', serif;
     }
 
     #overlay-image-container {
@@ -181,9 +189,11 @@
     }
 
     #fullscreen-overlay label[for="dissolve-slider"] {
-      margin-top: 20px; /* Adjust this value as needed */
-      display: block; /* Optional: ensures margin behaves predictably */
-    }    
+      margin-top: 20px;
+      /* Adjust this value as needed */
+      display: block;
+      /* Optional: ensures margin behaves predictably */
+    }
   </style>
 </head>
 
@@ -1019,14 +1029,14 @@
   <div id="fullscreen-overlay" style="display: none;">
     <div id="overlay-content">
       <div id="overlay-sidebar">
-        <div id="overlay-title"></div>
-        <label for="dissolve-slider">Show Contemporary Photograph</label>
+        <div id="overlay-title">Photo Title Placeholder</div>
+        <label for="dissolve-slider">Dissolve Between Historic and Rephoto</label>
         <input type="range" id="dissolve-slider" min="0" max="100" value="0" />
       </div>
       <div id="overlay-image-container">
+        <button id="overlay-close-btn">&times;</button>
         <img id="historic-image" src="" alt="Historic Image" />
-        <img id="rephoto-image" src="" alt="Contemporary Photograph" />
-        <button id="overlay-close-btn">✕</button>
+        <img id="rephoto-image" src="" alt="Rephotographed Image" />
       </div>
     </div>
   </div>
