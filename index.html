@@ -190,6 +190,7 @@
     }
 
     #fullscreen-overlay label[for="dissolve-slider"] {
+      font-size: 12px;
       margin-top: 20px;
       /* Adjust this value as needed */
       display: block;
@@ -967,7 +968,7 @@
         const feature = photoFeatures[currentPhotoIndex];
         if (!feature) return;
 
-        map.easeTo({ center: feature.geometry.coordinates, duration: 800 });
+        map.easeTo({ center: feature.geometry.coordinates, duration: 800, zoom: 14 });
 
         const thumbUrl = feature.properties.thumbs || '';
         const fullUrl = feature.properties.full || '';
@@ -1230,9 +1231,10 @@
     <div id="overlay-content">
       <div id="overlay-sidebar">
         <div id="overlay-title">Photo Title Placeholder</div>
+        <p style="font-size: 12px; color: #555; margin-top: 10px;">Navigate between photos using the arrows below.</p>
         
         <!-- Navigation buttons -->
-        <div id="overlay-navigation" style="margin: 10px 0;">
+        <div id="overlay-navigation" style="margin: 0px 0px 0px 0px;">
           <button id="prev-btn">&larr;</button>
           <button id="next-btn">&rarr;</button>
         </div>
