@@ -195,6 +195,16 @@
       display: block;
       /* Optional: ensures margin behaves predictably */
     }
+
+    .maplibregl-popup-content {
+      max-height: calc(100vh - 40px); /* prevent overflow out of viewport */
+      overflow-y: auto;
+    }
+
+    .maplibregl-popup {
+      max-width: 300px; /* or whatever fits your layout */
+    }    
+    
   </style>
 </head>
 
@@ -220,17 +230,24 @@
 
     <div id="layer-toggle">
       <label>
+        <!--Make it checked by default-->
+        <input type="checkbox" id="broadway-toggle" checked />
+        Broadway
+      </label>
+      <label>
         <input type="checkbox" id="subway-toggle" />
-        Show Subway Lines & Stations
+        Subway
       </label>
       <label>
         <input type="checkbox" id="elevated-toggle" />
-        Show Elevated Train Lines & Stations
+        Elevated Train
       </label>
     </div>
   </div>
 
   <script src="https://unpkg.com/maplibre-gl@^5.6.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
+
   <script>
     const map = new maplibregl.Map({
       container: 'map',
@@ -331,6 +348,9 @@
             id: 'broadway-history-layer',
             type: 'line',
             source: 'broadway-history',
+            layout: {
+              visibility: 'visible'
+            },
             paint: {
               'line-color': '#8B5E3C',
               'line-width': 3,
@@ -809,70 +829,94 @@
         popupContainer.style.boxShadow = '2px 2px 6px rgba(0,0,0,0.1)';
 
         // Create image element
-        const img = document.createElement('img');
-        img.style.width = '100%'; // image fills popup width
+        const img = new Image();
+        img.src = thumbUrl;
+        img.style.width = '100%';
         img.style.height = 'auto';
         img.style.borderRadius = '4px';
         img.style.cursor = fullUrl ? 'pointer' : 'default';
-        img.src = thumbUrl; // default placeholder
 
-        // Wrap in link if full image exists
-        if (fullUrl) {
-          img.style.cursor = 'pointer';
-          img.addEventListener('click', () => {
-            const filename = fullUrl.split('/').pop(); // Get the filename only
-            const rephotoUrl = 'img/rephotos/' + filename;
+        // Wait for image to fully load before building and displaying the popup
+        img.onload = () => {
+          popupContainer.appendChild(img);
 
-            document.getElementById('historic-image').src = fullUrl;
-            document.getElementById('rephoto-image').src = rephotoUrl;
-            document.getElementById('overlay-title').textContent = title;
+          // Optional click-to-expand logic
+          if (fullUrl) {
+            img.addEventListener('click', () => {
+              const filename = fullUrl.split('/').pop();
+              const rephotoUrl = 'img/rephotos/' + filename;
 
-            // Reset dissolve slider
-            const dissolveSlider = document.getElementById('dissolve-slider');
-            dissolveSlider.value = 0;
-            document.getElementById('historic-image').style.opacity = 1;
-            document.getElementById('rephoto-image').style.opacity = 0;
+              document.getElementById('historic-image').src = fullUrl;
+              document.getElementById('rephoto-image').src = rephotoUrl;
+              document.getElementById('overlay-title').textContent = title;
 
-            // Show the overlay
-            document.getElementById('fullscreen-overlay').style.display = 'flex';
-          });
-        }
+              const dissolveSlider = document.getElementById('dissolve-slider');
+              dissolveSlider.value = 0;
+              document.getElementById('historic-image').style.opacity = 1;
+              document.getElementById('rephoto-image').style.opacity = 0;
 
-        popupContainer.appendChild(img);
+              document.getElementById('fullscreen-overlay').style.display = 'flex';
+            });
+          }
+          
+          // Add title text
+          const titleDiv = document.createElement('div');
+          titleDiv.style.marginTop = '4px';
+          titleDiv.style.fontSize = '12px';
+          titleDiv.style.color = '#333';
+          titleDiv.style.wordWrap = 'break-word';
+          titleDiv.style.overflowWrap = 'break-word';
+          titleDiv.textContent = title;
+          popupContainer.appendChild(titleDiv);
 
-        // Create title element
-        const titleDiv = document.createElement('div');
-        titleDiv.style.marginTop = '4px';
-        titleDiv.style.fontSize = '12px';
-        titleDiv.style.color = '#333';
-        titleDiv.style.wordWrap = 'break-word';
-        titleDiv.style.overflowWrap = 'break-word';
-        titleDiv.textContent = title;
-        popupContainer.appendChild(titleDiv);
-
-        // Create and show popup
-        const popup = new maplibregl.Popup({
-            offset: 15
+          // Now show the popup — AFTER image has loaded
+          const popup = new maplibregl.Popup({
+            offset: 15,
+            //closeButton: false,
+            closeOnClick: true
           })
-          .setLngLat(feature.geometry.coordinates)
-          .setDOMContent(popupContainer)
-          .addTo(map);
+            .setLngLat(feature.geometry.coordinates)
+            .setDOMContent(popupContainer)
+            .addTo(map);
 
-        window.currentPopup = popup;
-      });
+          window.currentPopup = popup;
+        };
+      });          
 
       document.getElementById('overlay-close-btn').addEventListener('click', () => {
         document.getElementById('fullscreen-overlay').style.display = 'none';
       });
 
+      const broadwayToggle = document.getElementById('broadway-toggle');
       const subwayToggle = document.getElementById('subway-toggle');
       const elevatedToggle = document.getElementById('elevated-toggle');
 
-      const subwayLinesVisible = map.getLayoutProperty('subway-lines-layer', 'visibility') === 'visible';
-      subwayToggle.checked = subwayLinesVisible;
+      // Set initial visibility based on checkbox state
+      const setInitialVisibility = (toggle, layerIds) => {
+        const visibility = toggle.checked ? 'visible' : 'none';
+        layerIds.forEach(layerId => {
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, 'visibility', visibility);
+          }
+        });
+      };
 
-      const elevatedVisible = map.getLayoutProperty('elevated-train-layer', 'visibility') === 'visible';
-      elevatedToggle.checked = elevatedVisible;
+      // Set visibility based on the checkbox states (HTML)
+      setInitialVisibility(broadwayToggle, ['broadway-layer', 'broadway-history-layer']);
+      setInitialVisibility(subwayToggle, ['subway-lines-layer', 'subway-stations-layer']);
+      setInitialVisibility(elevatedToggle, ['elevated-train-layer', 'elevated-stations-layer']);
+
+      broadwayToggle.addEventListener('change', () => {
+        const visibility = broadwayToggle.checked ? 'visible' : 'none';
+
+        if (map.getLayer('broadway-layer')) {
+          map.setLayoutProperty('broadway-layer', 'visibility', visibility);
+        }
+
+        if (map.getLayer('broadway-history-layer')) {
+          map.setLayoutProperty('broadway-history-layer', 'visibility', visibility);
+        }
+      });
 
       subwayToggle.addEventListener('change', () => {
         const visibility = subwayToggle.checked ? 'visible' : 'none';
@@ -983,12 +1027,27 @@
         }
       });
 
+      // Inside your existing timeSlider input handler
       timeSlider.addEventListener('input', () => {
         const year = parseInt(timeSlider.value, 10);
         timeYear.textContent = `${year}`;
 
+        // Update filtered GeoJSON
         if (map.getSource('broadway-history')) {
           map.getSource('broadway-history').setData(filterByYear(year));
+        }
+
+        // Automatically turn on Broadway layer if it's not already visible
+        if (!broadwayToggle.checked) {
+          broadwayToggle.checked = true;
+
+          if (map.getLayer('broadway-layer')) {
+            map.setLayoutProperty('broadway-layer', 'visibility', 'visible');
+          }
+
+          if (map.getLayer('broadway-history-layer')) {
+            map.setLayoutProperty('broadway-history-layer', 'visibility', 'visible');
+          }
         }
       });
 
@@ -1041,6 +1100,34 @@
       </div>
     </div>
   </div>
+
+  <script>
+    const historic = document.getElementById('historic-image');
+    const rephoto = document.getElementById('rephoto-image');
+    const overlay = document.getElementById('fullscreen-overlay');
+    const closeBtn = document.getElementById('overlay-close-btn');
+    
+    // Initialize panzoom and keep references
+    const historicPanzoom = Panzoom(historic, { maxScale: 4 });
+    const rephotoPanzoom = Panzoom(rephoto, { maxScale: 4 });
+    
+    closeBtn.addEventListener('click', () => {
+      overlay.style.display = 'none';
+
+      // Reset zoom and pan when closing
+      historicPanzoom.reset();
+      rephotoPanzoom.reset();
+    });
+
+    // Whenever you open the overlay, make sure it displays, and optionally reset here too
+    function openOverlay() {
+      overlay.style.display = 'block';
+
+      // Optional: reset zoom/position on open
+      historicPanzoom.reset();
+      rephotoPanzoom.reset();
+    }
+  </script>
 
 </body>
 
