@@ -197,14 +197,15 @@
     }
 
     .maplibregl-popup-content {
-      max-height: calc(100vh - 40px); /* prevent overflow out of viewport */
+      max-height: calc(100vh - 40px);
+      /* prevent overflow out of viewport */
       overflow-y: auto;
     }
 
     .maplibregl-popup {
-      max-width: 300px; /* or whatever fits your layout */
-    }    
-    
+      max-width: 300px;
+      /* or whatever fits your layout */
+    }
   </style>
 </head>
 
@@ -252,7 +253,7 @@
     const map = new maplibregl.Map({
       container: 'map',
       style: 'assets/styles/style.json',
-      center: [-73.96, 40.785],
+      center: [-73.96, 40.79],
       zoom: 11
     });
 
@@ -298,8 +299,54 @@
       });
     }
 
+    // Function to update the overlay with a photo at a specific index
+    function updateOverlayByIndex(index) {
+      if (index < 0 || index >= photoFeatures.length) return;
+
+      const feature = photoFeatures[index];
+      currentPhotoIndex = index;
+
+      const thumbUrl = feature.properties.thumbs || '';
+      const fullUrl = feature.properties.full || '';
+      const title = feature.properties.title || '';
+
+      // Set full URLs for the images
+      historic.src = fullUrl;
+      rephoto.src = 'img/rephotos/' + fullUrl.split('/').pop();
+
+      // Update title
+      document.getElementById('overlay-title').textContent = title;
+
+      // Reset dissolve slider & image opacity
+      const dissolveSlider = document.getElementById('dissolve-slider');
+      dissolveSlider.value = 0;
+      historic.style.opacity = 1;
+      rephoto.style.opacity = 0;
+
+      // Reset zoom/pan
+      historicPanzoom.reset();
+      rephotoPanzoom.reset();
+
+      // Show overlay
+      openOverlay();
+    }    
+
+    let photoFeatures = [];
+    let currentPhotoIndex = -1;
+
     // --- CONSOLIDATED MAP ON 'LOAD' HANDLER ---
     map.on('load', async () => {
+
+      map.on('sourcedata', (e) => {
+        if (
+          e.sourceId === 'photos' &&
+          e.isSourceLoaded &&
+          map.getSource('photos') &&
+          map.getSource('photos')._data
+        ) {
+          photoFeatures = map.getSource('photos')._data.features || [];
+        }
+      });   
 
       const timeSlider = document.getElementById('time-slider-input');
       const timeYear = document.getElementById('time-year');
@@ -807,10 +854,13 @@
       });
 
       map.on('click', 'photos-layer', (e) => {
+
         const feature = e.features[0];
         const thumbUrl = feature.properties.thumbs || '';
         const fullUrl = feature.properties.full || '';
         const title = feature.properties.title || '';
+
+        currentPhotoIndex = photoFeatures.findIndex(f => f.id === feature.id);
 
         // Remove any existing popup
         if (window.currentPopup) {
@@ -843,6 +893,15 @@
           // Optional click-to-expand logic
           if (fullUrl) {
             img.addEventListener('click', () => {
+
+              // REMOVE any existing popup
+              if (window.currentPopup) {
+                window.currentPopup.remove();
+                window.currentPopup = null; // optional cleanup
+              }
+
+              updateOverlayByIndex(currentPhotoIndex);
+
               const filename = fullUrl.split('/').pop();
               const rephotoUrl = 'img/rephotos/' + filename;
 
@@ -858,7 +917,7 @@
               document.getElementById('fullscreen-overlay').style.display = 'flex';
             });
           }
-          
+
           // Add title text
           const titleDiv = document.createElement('div');
           titleDiv.style.marginTop = '4px';
@@ -871,20 +930,101 @@
 
           // Now show the popup — AFTER image has loaded
           const popup = new maplibregl.Popup({
-            offset: 15,
-            //closeButton: false,
-            closeOnClick: true
-          })
+              offset: 15,
+              //closeButton: false,
+              closeOnClick: true
+            })
             .setLngLat(feature.geometry.coordinates)
             .setDOMContent(popupContainer)
             .addTo(map);
 
           window.currentPopup = popup;
         };
-      });          
+      });
+
+      // Prev and Next button event listeners
+      document.getElementById('prev-btn').addEventListener('click', () => {
+        if (currentPhotoIndex > 0) {
+          updateOverlayByIndex(currentPhotoIndex - 1);
+        }
+      });
+
+      document.getElementById('next-btn').addEventListener('click', () => {
+        if (currentPhotoIndex < photoFeatures.length - 1) {
+          updateOverlayByIndex(currentPhotoIndex + 1);
+        }
+      });      
 
       document.getElementById('overlay-close-btn').addEventListener('click', () => {
-        document.getElementById('fullscreen-overlay').style.display = 'none';
+        // Hide the overlay
+        overlay.style.display = 'none';
+
+        // Reset zoom/pan
+        historicPanzoom.reset();
+        rephotoPanzoom.reset();
+
+        // Get the current feature
+        const feature = photoFeatures[currentPhotoIndex];
+        if (!feature) return;
+
+        map.easeTo({ center: feature.geometry.coordinates, duration: 800 });
+
+        const thumbUrl = feature.properties.thumbs || '';
+        const fullUrl = feature.properties.full || '';
+        const title = feature.properties.title || '';
+
+        // Create popup container
+        const popupContainer = document.createElement('div');
+        popupContainer.style.maxWidth = '300px';
+        popupContainer.style.fontFamily = "'Fraunces', serif";
+        popupContainer.style.textAlign = 'left';
+        popupContainer.style.lineHeight = '1.3';
+        popupContainer.style.backgroundColor = '#f9f7f1';
+        popupContainer.style.padding = '8px';
+        popupContainer.style.borderRadius = '6px';
+        popupContainer.style.boxShadow = '2px 2px 6px rgba(0,0,0,0.1)';
+
+        // Image element
+        const img = new Image();
+        img.src = thumbUrl;
+        img.style.width = '100%';
+        img.style.height = 'auto';
+        img.style.borderRadius = '4px';
+        img.style.cursor = fullUrl ? 'pointer' : 'default';
+
+        img.onload = () => {
+          popupContainer.appendChild(img);
+
+          // Click-to-expand logic
+          if (fullUrl) {
+            img.addEventListener('click', () => {
+              if (window.currentPopup) {
+                window.currentPopup.remove();
+                window.currentPopup = null;
+              }
+
+              updateOverlayByIndex(currentPhotoIndex); // <-- go back to fullscreen
+            });
+          }
+
+          // Add title
+          const titleDiv = document.createElement('div');
+          titleDiv.style.marginTop = '4px';
+          titleDiv.style.fontSize = '12px';
+          titleDiv.style.color = '#333';
+          titleDiv.style.wordWrap = 'break-word';
+          titleDiv.style.overflowWrap = 'break-word';
+          titleDiv.textContent = title;
+          popupContainer.appendChild(titleDiv);
+
+          // Create and show popup
+          const popup = new maplibregl.Popup({ offset: 15, closeOnClick: true })
+            .setLngLat(feature.geometry.coordinates)
+            .setDOMContent(popupContainer)
+            .addTo(map);
+
+          window.currentPopup = popup;
+        };
       });
 
       const broadwayToggle = document.getElementById('broadway-toggle');
@@ -1086,10 +1226,17 @@
   </script>
 
   <!-- Fullscreen Overlay for Full Images -->
-  <div id="fullscreen-overlay" style="display: none;">
+  <div id="fullscreen-overlay" style="display: none; justify-content: center; align-items: center;">
     <div id="overlay-content">
       <div id="overlay-sidebar">
         <div id="overlay-title">Photo Title Placeholder</div>
+        
+        <!-- Navigation buttons -->
+        <div id="overlay-navigation" style="margin: 10px 0;">
+          <button id="prev-btn">&larr;</button>
+          <button id="next-btn">&rarr;</button>
+        </div>
+        
         <label for="dissolve-slider">Dissolve Between Historic and Rephoto</label>
         <input type="range" id="dissolve-slider" min="0" max="100" value="0" />
       </div>
@@ -1106,11 +1253,15 @@
     const rephoto = document.getElementById('rephoto-image');
     const overlay = document.getElementById('fullscreen-overlay');
     const closeBtn = document.getElementById('overlay-close-btn');
-    
+
     // Initialize panzoom and keep references
-    const historicPanzoom = Panzoom(historic, { maxScale: 4 });
-    const rephotoPanzoom = Panzoom(rephoto, { maxScale: 4 });
-    
+    const historicPanzoom = Panzoom(historic, {
+      maxScale: 4
+    });
+    const rephotoPanzoom = Panzoom(rephoto, {
+      maxScale: 4
+    });
+
     closeBtn.addEventListener('click', () => {
       overlay.style.display = 'none';
 
@@ -1121,7 +1272,7 @@
 
     // Whenever you open the overlay, make sure it displays, and optionally reset here too
     function openOverlay() {
-      overlay.style.display = 'block';
+      overlay.style.display = 'flex';
 
       // Optional: reset zoom/position on open
       historicPanzoom.reset();
