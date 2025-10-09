@@ -244,6 +244,10 @@
         <input type="checkbox" id="elevated-toggle" />
         Elevated Train
       </label>
+      <label>
+        <input type="checkbox" id="indian-trails-toggle" />
+        Indian Trails (Speculative)
+      </label>
     </div>
   </div>
 
@@ -413,6 +417,9 @@
       let hoveredSubwayStationId = null;
       let hoveredElevatedStationId = null;
 
+      // Set up hover effect for indian trails
+      let hoveredIndianTrailId = null;
+
       const hoverPopup = new maplibregl.Popup({
         closeButton: false,
         closeOnClick: false,
@@ -420,6 +427,30 @@
         className: 'hover-tooltip'
       });
 
+      // Load Indian Trails
+      map.addSource('indian-trails', {
+        type: 'geojson',
+        data: 'overlays/indian-trails.geojson'
+      });
+      map.addLayer({
+        id: 'indian-trails-layer',
+        type: 'line',
+        source: 'indian-trails',
+        layout: {
+          visibility: 'none'
+        },
+        paint: {
+          'line-color': [
+            'case',
+            ['boolean', ['feature-state', 'hover'], false],
+            '#D8A903', // color on hover
+            '#003153' // default color
+          ],
+          'line-width': 2,
+          'line-opacity': 0.7,
+          'line-dasharray': [2, 4]
+        }
+      });
 
       // Load Elevated Train Lines
       map.addSource('elevated-train', {
@@ -469,6 +500,64 @@
           'circle-stroke-color': '#f9f7f1',
           'circle-stroke-width': 1
         }
+      });
+
+      // Create hover interaction for indian trails
+      map.on('mousemove', 'indian-trails-layer', (e) => {
+        const features = map.queryRenderedFeatures(e.point, {
+          layers: ['indian-trails-layer']
+        });
+        if (!features.length) {
+          if (hoveredIndianTrailId !== null) {
+            map.setFeatureState({
+              source: 'indian-trails',
+              id: hoveredIndianTrailId
+            }, {
+              hover: false
+            });
+            hoveredIndianTrailId = null;
+          }
+          map.getCanvas().style.cursor = '';
+          hoverPopup.remove(); // Remove tooltip
+          return;
+        }
+        const feature = features[0];
+        if (hoveredIndianTrailId !== feature.id) {
+          if (hoveredIndianTrailId !== null) {
+            map.setFeatureState({
+              source: 'indian-trails',
+              id: hoveredIndianTrailId
+            }, {
+              hover: false
+            });
+          }
+          hoveredIndianTrailId = feature.id;
+          map.setFeatureState({
+            source: 'indian-trails',
+            id: hoveredIndianTrailId
+          }, {
+            hover: true
+          });
+        }
+        hoverPopup
+          .setLngLat(e.lngLat)
+          .setHTML(`<strong>${feature.properties.name || 'Unknown'} Trail</strong>`)
+          .addTo(map);
+        map.getCanvas().style.cursor = 'pointer';
+      });
+
+      map.on('mouseleave', 'indian-trails-layer', () => {
+        if (hoveredIndianTrailId !== null) {
+          map.setFeatureState({
+            source: 'indian-trails',
+            id: hoveredIndianTrailId
+          }, {
+            hover: false
+          });
+          hoveredIndianTrailId = null;
+        }
+        map.getCanvas().style.cursor = '';
+        hoverPopup.remove(); // Remove tooltip
       });
 
       // Create hover interaction for elevated train lines
@@ -1031,6 +1120,7 @@
       const broadwayToggle = document.getElementById('broadway-toggle');
       const subwayToggle = document.getElementById('subway-toggle');
       const elevatedToggle = document.getElementById('elevated-toggle');
+      const indianTrailsToggle = document.getElementById('indian-trails-toggle');
 
       // Set initial visibility based on checkbox state
       const setInitialVisibility = (toggle, layerIds) => {
@@ -1046,6 +1136,14 @@
       setInitialVisibility(broadwayToggle, ['broadway-layer', 'broadway-history-layer']);
       setInitialVisibility(subwayToggle, ['subway-lines-layer', 'subway-stations-layer']);
       setInitialVisibility(elevatedToggle, ['elevated-train-layer', 'elevated-stations-layer']);
+      setInitialVisibility(indianTrailsToggle, ['indian-trails-layer']);
+
+      indianTrailsToggle.addEventListener('change', () => {
+        const visibility = indianTrailsToggle.checked ? 'visible' : 'none';
+        if (map.getLayer('indian-trails-layer')) {
+          map.setLayoutProperty('indian-trails-layer', 'visibility', visibility);
+        }
+      });
 
       broadwayToggle.addEventListener('change', () => {
         const visibility = broadwayToggle.checked ? 'visible' : 'none';
