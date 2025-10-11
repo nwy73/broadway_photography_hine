@@ -10,9 +10,20 @@
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;700&display=swap" rel="stylesheet" />
 
     <style>
-      /* ---------------------------------------------
-         Fonts / Base
-      ----------------------------------------------*/
+      /* =====================================================
+         Design tokens / base
+      ====================================================== */
+      :root {
+        --bg: #f9f7f1;
+        --ink: #333;
+        --ink-muted: #555;
+        --panel: #e6d1aa;
+        --shadow-sm: 2px 2px 6px rgba(0, 0, 0, 0.1);
+        --shadow-lg: 0 0 12px rgba(0, 0, 0, 0.3);
+        --radius: 8px;
+        --gap: 12px;
+      }
+
       @font-face {
         font-family: "CGHine";
         src: url("./font/CgHine-Regular.ttf") format("truetype");
@@ -26,28 +37,28 @@
         margin: 0;
         padding: 0;
         height: 100%;
-        background: #f9f7f1;
+        background: var(--bg);
       }
 
-      /* ---------------------------------------------
+      /* =====================================================
          Map layout
-      ----------------------------------------------*/
+      ====================================================== */
       #map-container,
       #map {
         position: absolute;
         inset: 0;
       }
 
-      /* ---------------------------------------------
+      /* =====================================================
          Control panel (sliders + toggles)
-      ----------------------------------------------*/
+      ====================================================== */
       #slider-container {
         font-family: "Jacques Francois", serif;
-        background-color: #f9f7f1;
+        background-color: var(--bg);
         border: 1px solid #ccc;
         padding: 12px;
         width: 280px;
-        box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
+        box-shadow: var(--shadow-sm);
         border-radius: 6px;
         position: absolute;
         top: 10px;
@@ -61,7 +72,7 @@
       #opacity-labels,
       #slider-container label {
         font-size: 0.9em;
-        color: #555;
+        color: var(--ink-muted);
       }
 
       #opacity-labels {
@@ -78,12 +89,12 @@
       #time-year {
         font-size: 0.9em;
         margin-left: 8px;
-        color: #555;
+        color: var(--ink-muted);
       }
 
-      /* ---------------------------------------------
-         Maplibre popups
-      ----------------------------------------------*/
+      /* =====================================================
+         MapLibre popups
+      ====================================================== */
       .maplibregl-popup-content {
         max-height: calc(100vh - 40px);
         overflow-y: auto;
@@ -92,9 +103,9 @@
         max-width: 300px;
       }
 
-      /* ---------------------------------------------
-         Fullscreen overlay
-      ----------------------------------------------*/
+      /* =====================================================
+         Fullscreen overlay (image viewer)
+      ====================================================== */
       #fullscreen-overlay {
         position: fixed;
         inset: 0;
@@ -111,21 +122,21 @@
         display: flex;
         width: 90%;
         height: 90%;
-        background-color: #f9f7f1;
-        border-radius: 8px;
+        background-color: var(--bg);
+        border-radius: var(--radius);
         overflow: hidden;
-        box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
+        box-shadow: var(--shadow-lg);
       }
 
       #overlay-sidebar {
         width: 30%;
         padding: 24px;
         box-sizing: border-box;
-        background-color: #e6d1aa;
+        background-color: var(--panel);
         background-image: url("png/clean-textile.png");
         background-repeat: repeat;
         font-family: "Fraunces", serif;
-        color: #333;
+        color: var(--ink);
         display: flex;
         flex-direction: column;
         gap: 10px;
@@ -150,13 +161,15 @@
         overflow: hidden;
       }
 
-      /* Pan/zoom target */
+      /* Pan/zoom target wrapper */
       #rephoto-wrap {
-        position: relative;
-        display: inline-block;
+        position: absolute;
+        inset: 12px; /* matches container padding visually */
+        box-sizing: border-box;
         transform-origin: 0 0;
         touch-action: none;
         will-change: transform;
+        overflow: hidden; /* keep images clipped */
       }
 
       /* Stacked images fill wrapper; keep full image visible */
@@ -171,14 +184,8 @@
         user-select: none;
         -webkit-user-drag: none;
       }
-      #historic-image {
-        z-index: 1;
-        opacity: 1;
-      }
-      #rephoto-image {
-        z-index: 2;
-        opacity: 0;
-      }
+      #historic-image { z-index: 1; opacity: 1; }
+      #rephoto-image  { z-index: 2; opacity: 0; }
 
       /* Overlay close button */
       #overlay-close-btn {
@@ -197,23 +204,55 @@
         transition: background-color 0.2s;
         z-index: 9000;
       }
-      #overlay-close-btn:hover {
-        background-color: #fff;
-      }
+      #overlay-close-btn:hover { background-color: #fff; }
 
       #fullscreen-overlay label[for="dissolve-slider"] {
         font-size: 12px;
         margin-top: 20px;
         display: block;
       }
+
+      /* Respect reduced motion for overlay fades/opacity transitions */
+      @media (prefers-reduced-motion: reduce) {
+        #rephoto-wrap img { transition: none; }
+      }
+
+      /* =====================================================
+        Zoom controls (overlay)
+      ====================================================== */
+      #zoom-controls {
+        position: absolute;
+        right: 16px;
+        bottom: 16px;
+        display: flex;
+        gap: 8px;
+        z-index: 9001;
+      }
+
+      #zoom-controls button {
+        background: rgba(255, 255, 255, 0.95);
+        border: 1px solid #ddd;
+        border-radius: 6px;
+        padding: 6px 10px;
+        font-size: 14px;
+        cursor: pointer;
+        box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
+      }
+
+      #zoom-controls button:hover { background: #fff; }
+
     </style>
   </head>
 
   <body>
-    <!-- Map -->
+    <!-- ============================
+         Map canvas
+    ============================= -->
     <div id="map-container"><div id="map"></div></div>
 
-    <!-- UI Panel -->
+    <!-- ============================
+         UI Panel
+    ============================= -->
     <aside id="slider-container" aria-label="Map controls">
       <section id="opacity-slider">
         <div id="opacity-labels"><span>Historic Map</span><span>Contemporary Map</span></div>
@@ -234,8 +273,10 @@
       </section>
     </aside>
 
-    <!-- Fullscreen Overlay -->
-    <div id="fullscreen-overlay" role="dialog" aria-modal="true">
+    <!-- ============================
+         Fullscreen Overlay
+    ============================= -->
+    <div id="fullscreen-overlay" role="dialog" aria-modal="true" aria-label="Historic photo viewer">
       <div id="overlay-content">
         <div id="overlay-sidebar">
           <div id="overlay-title">Photo Title Placeholder</div>
@@ -247,24 +288,31 @@
           <label for="dissolve-slider">Dissolve Between Historic and Rephoto</label>
           <input type="range" id="dissolve-slider" min="0" max="100" value="0" />
         </div>
-
         <div id="overlay-image-container">
           <button id="overlay-close-btn" aria-label="Close viewer">&times;</button>
           <div id="rephoto-wrap">
             <img id="historic-image" src="" alt="Historic" />
             <img id="rephoto-image" src="" alt="Re-photograph" />
           </div>
+          <!-- Zoom toolbar -->
+          <div id="zoom-controls" role="toolbar" aria-label="Image zoom controls">
+            <button id="zoom-out" aria-label="Zoom out">−</button>
+            <button id="zoom-in" aria-label="Zoom in">+</button>
+            <button id="zoom-reset" aria-label="Reset zoom">Reset</button>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Scripts -->
+    <!-- ============================
+         Scripts
+    ============================= -->
     <script src="https://unpkg.com/maplibre-gl@^5.6.2/dist/maplibre-gl.js"></script>
     <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
     <script>
       /* =====================================================
-         DOM refs
-      ======================================================*/
+         DOM references
+      ====================================================== */
       const overlay = document.getElementById("fullscreen-overlay");
       const container = document.getElementById("overlay-image-container");
       const wrapper = document.getElementById("rephoto-wrap");
@@ -280,12 +328,17 @@
       const subwayToggle = document.getElementById("subway-toggle");
       const elevatedToggle = document.getElementById("elevated-toggle");
       const indianTrailsToggle = document.getElementById("indian-trails-toggle");
+      
+      // Zoom control refs
+      const zoomInBtn = document.getElementById("zoom-in");
+      const zoomOutBtn = document.getElementById("zoom-out");
+      const zoomResetBtn = document.getElementById("zoom-reset");
 
       /* =====================================================
          Panzoom (single instance)
          - Start contained to ensure first fit stays in bounds
          - Release containment on user interaction
-      ======================================================*/
+      ====================================================== */
       const pz = Panzoom(wrapper, { maxScale: 4, contain: "inside" });
       let containReleased = false;
 
@@ -299,6 +352,7 @@
         pz.setOptions({ contain: false });
       };
 
+      // Wheel zoom & drag start release the initial containment
       wrapper.addEventListener(
         "wheel",
         (e) => {
@@ -310,9 +364,47 @@
       );
       wrapper.addEventListener("pointerdown", releaseContain);
 
+      // --- Zoom buttons ---
+      const MAX_SCALE = 4;   // keep in sync with Panzoom's maxScale
+      const MIN_SCALE = 1;   // we lock min to 1 so "fit" never gets smaller
+
+      function getCurrentScale() {
+        // Prefer Panzoom's API if available
+        if (typeof pz.getScale === "function") return pz.getScale();
+        // Fallback: read the current CSS transform matrix on the wrapper
+        const m = new DOMMatrixReadOnly(getComputedStyle(wrapper).transform);
+        return m.a || 1;
+      }
+
+      function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
+
+      function zoomBy(factor) {
+        // Allow the user to move outside initial bounds once they start zooming
+        releaseContain();
+
+        const current = getCurrentScale();
+        const next = clamp(current * factor, MIN_SCALE, MAX_SCALE);
+
+        // Zoom toward the center of the container (feels natural)
+        const rect = container.getBoundingClientRect();
+        const point = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+
+        if (typeof pz.zoomToPoint === "function") {
+          pz.zoomToPoint(next, point);
+        } else if (typeof pz.zoom === "function") {
+          // Fallback: simple zoom; Panzoom will keep current center
+          pz.zoom(next, { animate: true });
+        }
+      }
+
+      // Wire up buttons
+      zoomInBtn.addEventListener("click", () => zoomBy(1.25));
+      zoomOutBtn.addEventListener("click", () => zoomBy(1 / 1.25));
+      zoomResetBtn.addEventListener("click", () => { enforceContain(); resetToFit(); });
+
       /* =====================================================
          Map setup
-      ======================================================*/
+      ====================================================== */
       const map = new maplibregl.Map({
         container: "map",
         style: "assets/styles/style.json",
@@ -328,8 +420,10 @@
       let currentPhotoIndex = -1;
 
       /* =====================================================
-         Helpers
-      ======================================================*/
+         Small utilities
+      ====================================================== */
+      const raf = () => new Promise((r) => requestAnimationFrame(r));
+
       /**
        * Load an SVG and register it as a MapLibre image using a canvas bitmap.
        */
@@ -342,7 +436,7 @@
 
         return new Promise((resolve, reject) => {
           img.onload = async () => {
-            // Derive a square canvas size from viewBox if present
+            // Prefer square canvas; derive from viewBox if present.
             const viewBoxMatch = svgText.match(/viewBox="([\d.\s]+)"/);
             let size = 64;
             if (viewBoxMatch) {
@@ -376,73 +470,44 @@
         return { type: "FeatureCollection", features };
       }
 
-      // Padding inside the visible content area (independent of CSS padding)
-      const FIT_PADDING = 12;
-
-      /** Calculate inner content box of the overlay container */
-      function getInnerBox() {
-        const cs = getComputedStyle(container);
-        const pl = parseFloat(cs.paddingLeft) || 0;
-        const pr = parseFloat(cs.paddingRight) || 0;
-        const pt = parseFloat(cs.paddingTop) || 0;
-        const pb = parseFloat(cs.paddingBottom) || 0;
-        const { clientWidth: cw, clientHeight: ch } = container;
-        const innerW = Math.max(0, cw - pl - pr - FIT_PADDING * 2);
-        const innerH = Math.max(0, ch - pt - pb - FIT_PADDING * 2);
-        return { pl, pr, pt, pb, innerW, innerH };
-      }
-
-      /** Size the panzoom wrapper to the container’s inner (padded) content box */
+      /**
+       * Size the panzoom wrapper to the container’s inner (padded) content box.
+       * The wrapper is absolutely positioned with `inset: 12px`; this function
+       * keeps its CSS-driven sizing in sync if container padding changes or when
+       * we need explicit width/height during measurements.
+       */
       function sizeWrapperToContainerBox() {
-        const { innerW, innerH } = getInnerBox();
-        if (!innerW || !innerH) return;
-        wrapper.style.width = innerW + "px";
-        wrapper.style.height = innerH + "px";
-      }
-
-      /** Center the wrapper at scale=1 inside the padded content area; set minScale */
-      function resetToFit() {
-        const { pl, pt, innerW, innerH } = getInnerBox();
-        const ww = wrapper.offsetWidth;
-        const wh = wrapper.offsetHeight;
-        if (!innerW || !innerH || !ww || !wh) return;
-        const scale = 1; // wrapper already sized to fit content box
-        const x = pl + FIT_PADDING + (innerW - ww * scale) / 2;
-        const y = pt + FIT_PADDING + (innerH - wh * scale) / 2;
-        pz.setOptions({ minScale: scale });
-        pz.setTransform(x, y, scale);
+        const rect = container.getBoundingClientRect();
+        // Subtract the visual inset (12px on each side) to match CSS
+        const inset = 12 * 2;
+        const w = Math.max(0, rect.width - inset);
+        const h = Math.max(0, rect.height - inset);
+        wrapper.style.width = w + "px";
+        wrapper.style.height = h + "px";
       }
 
       /**
-       * Precisely center on the painted (object-fit) rect of the historic image.
+       * Reset view to scale=1 and x/y=0 using Panzoom's public API.
+       * Also lock the minimum so the user can't zoom out smaller than fit.
+       */
+      function resetToFit() {
+        pz.setOptions({ minScale: 1 });
+        if (typeof pz.reset === "function") {
+          pz.reset({ animate: false });
+        } else {
+          // Fallback for older builds: manually set zoom and pan
+          if (typeof pz.zoom === "function") pz.zoom(1, { animate: false });
+          if (typeof pz.pan === "function") pz.pan(0, 0, { animate: false });
+        }
+      }
+
+      /**
+       * Optional: nudge the image to ensure its natural bounds are centered
+       * after fonts/layout settle. Left as a no-op but preserved for future
+       * fine-tuning. Safe to call repeatedly.
        */
       function nudgeToImageRect() {
-        const cs = getComputedStyle(container);
-        const pl = parseFloat(cs.paddingLeft) || 0;
-        const pr = parseFloat(cs.paddingRight) || 0;
-        const pt = parseFloat(cs.paddingTop) || 0;
-        const pb = parseFloat(cs.paddingBottom) || 0;
-
-        const cont = container.getBoundingClientRect();
-        const innerLeft = cont.left + pl + FIT_PADDING;
-        const innerTop = cont.top + pt + FIT_PADDING;
-        const innerWidth = cont.width - pl - pr - FIT_PADDING * 2;
-        const innerHeight = cont.height - pt - pb - FIT_PADDING * 2;
-        const innerCx = innerLeft + innerWidth / 2;
-        const innerCy = innerTop + innerHeight / 2;
-
-        const imgRect = historic.getBoundingClientRect();
-        if (!imgRect.width || !imgRect.height) return;
-
-        const imgCx = imgRect.left + imgRect.width / 2;
-        const imgCy = imgRect.top + imgRect.height / 2;
-
-        const dx = innerCx - imgCx;
-        const dy = innerCy - imgCy;
-        if (Math.abs(dx) > 0.5 || Math.abs(dy) > 0.5) {
-          const t = pz.getTransform();
-          pz.setTransform(t.x + dx, t.y + dy, t.scale);
-        }
+        // Intentionally empty. Placeholder for future fit heuristics.
       }
 
       // Convenience: do a full recenter sequence now
@@ -453,57 +518,37 @@
 
       /**
        * Open overlay and perform a stable sequence of fit + nudges.
+       * We allow layout to settle (scrollbars/fonts) before measuring.
        */
-      function openOverlay() {
+      async function openOverlayStable() {
         overlay.style.display = "flex";
-        // Prevent scrollbar shifts while visible
+        // Removing page scrollbars can change viewport height; wait for layout to settle
         document.documentElement.style.overflow = "hidden";
-        // Flush layout so following measurements are correct
-        overlay.getBoundingClientRect();
-        // Lock inside for initial fit
-        enforceContain();
+        overlay.getBoundingClientRect(); // force style & layout flush
+        await raf();
+        await raf(); // 2 frames => stable measurements
+      }
 
-        // Pass 1: immediately
-        centerNow();
-        // Pass 2: next frame
-        requestAnimationFrame(() => {
-          centerNow();
-          nudgeToImageRect();
-          // Pass 3: one more frame
-          requestAnimationFrame(() => {
-            centerNow();
-            nudgeToImageRect();
-          });
-        });
-        // Pass 4: after fonts settle (if any)
-        if (document.fonts && document.fonts.ready) {
-          document.fonts.ready.then(() => {
-            centerNow();
-            nudgeToImageRect();
-          });
+      async function waitImageReady(img) {
+        if (img.decode) {
+          try { await img.decode(); } catch {}
+        } else if (!img.complete) {
+          await new Promise((res) => img.addEventListener("load", res, { once: true }));
         }
+        await raf(); // ensure final painted size is measurable
       }
 
       /**
-       * Zoom the map to the current photo and show its popup (after viewer close).
+       * Create a styled popup DOM node with optional clickable thumbnail.
        */
-      function zoomMapToCurrentAndShowPopup() {
-        const feature = photoFeatures[currentPhotoIndex];
-        if (!feature) return;
-
-        map.easeTo({ center: feature.geometry.coordinates, duration: 800, zoom: 14 });
-
-        const thumbUrl = feature.properties.thumbs || "";
-        const fullUrl = feature.properties.full || "";
-        const title = feature.properties.title || "";
-
+      function buildPhotoPopupDom({ thumbUrl, fullUrl, title, onThumbClick }) {
         const popupContainer = document.createElement("div");
         Object.assign(popupContainer.style, {
           maxWidth: "300px",
           fontFamily: "'Fraunces', serif",
           textAlign: "left",
           lineHeight: "1.3",
-          backgroundColor: "#f9f7f1",
+          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--bg") || "#f9f7f1",
           padding: "8px",
           borderRadius: "6px",
           boxShadow: "2px 2px 6px rgba(0,0,0,0.1)",
@@ -520,15 +565,11 @@
 
         img.onload = () => {
           popupContainer.appendChild(img);
-          if (fullUrl) {
+          if (fullUrl && typeof onThumbClick === "function") {
             img.addEventListener("click", (e) => {
               e.preventDefault();
               e.stopPropagation();
-              if (window.currentPopup) {
-                window.currentPopup.remove();
-                window.currentPopup = null;
-              }
-              updateOverlayByIndex(currentPhotoIndex);
+              onThumbClick();
             });
           }
 
@@ -540,30 +581,64 @@
             wordWrap: "break-word",
             overflowWrap: "break-word",
           });
-          titleDiv.textContent = title;
+          titleDiv.textContent = title || "";
           popupContainer.appendChild(titleDiv);
-
-          const popup = new maplibregl.Popup({ offset: 15, closeOnClick: true })
-            .setLngLat(feature.geometry.coordinates)
-            .setDOMContent(popupContainer)
-            .addTo(map);
-          window.currentPopup = popup;
         };
+
+        return popupContainer;
+      }
+
+      /**
+       * Zoom the map to the current photo and show its popup (after viewer close).
+       */
+      function zoomMapToCurrentAndShowPopup() {
+        const feature = photoFeatures[currentPhotoIndex];
+        if (!feature) return;
+
+        map.easeTo({ center: feature.geometry.coordinates, duration: 800, zoom: 14 });
+
+        const thumbUrl = feature.properties.thumbs || "";
+        const fullUrl = feature.properties.full || "";
+        const title = feature.properties.title || "";
+
+        const popupDom = buildPhotoPopupDom({
+          thumbUrl,
+          fullUrl,
+          title,
+          onThumbClick: () => {
+            if (window.currentPopup) {
+              window.currentPopup.remove();
+              window.currentPopup = null;
+            }
+            updateOverlayByIndex(currentPhotoIndex);
+          },
+        });
+
+        const popup = new maplibregl.Popup({ offset: 15, closeOnClick: true })
+          .setLngLat(feature.geometry.coordinates)
+          .setDOMContent(popupDom)
+          .addTo(map);
+        window.currentPopup = popup;
       }
 
       /**
        * Load a photo by index and show overlay with robust recentering.
        */
-      function updateOverlayByIndex(index) {
+      async function updateOverlayByIndex(index) {
         if (index < 0 || index >= photoFeatures.length) return;
+
         const feature = photoFeatures[index];
         currentPhotoIndex = index;
 
+        // Reset pan/zoom and containment state
         pz.reset();
+        containReleased = false;
+        enforceContain();
 
+        // Update images + title; guard for missing URL
         const fullUrl = feature.properties.full || "";
+        if (!fullUrl) return; // don’t open empty overlay
         const title = feature.properties.title || "";
-
         historic.src = fullUrl;
         rephoto.src = "img/rephotos/" + fullUrl.split("/").pop();
         document.getElementById("overlay-title").textContent = title;
@@ -573,34 +648,35 @@
         historic.style.opacity = 1;
         rephoto.style.opacity = 0;
 
-        // Show overlay first; fit after it's visible
-        openOverlay();
+        // 1) Open overlay and let layout settle
+        await openOverlayStable();
 
-        // Recenter once the image is ready (covers cached & network cases)
-        const centerSequence = () => {
-          centerNow();
-          nudgeToImageRect();
-          requestAnimationFrame(() => {
-            centerNow();
-            nudgeToImageRect();
-          });
-        };
-        if (!historic.complete) {
-          historic.addEventListener("load", centerSequence, { once: true });
-        } else {
-          centerSequence();
-        }
+        // 2) Ensure the historic image has decoded/painted so its rect is accurate
+        await waitImageReady(historic);
+
+        // 3) Match wrapper to container inner box then center + (optional) nudge
+        sizeWrapperToContainerBox();
+        resetToFit();
+        nudgeToImageRect();
+
+        // 4) One more frame for straggling layout (fonts, etc.)
+        await raf();
+        sizeWrapperToContainerBox();
+        resetToFit();
+        nudgeToImageRect();
       }
 
       /* =====================================================
          Overlay UI listeners
-      ======================================================*/
+      ====================================================== */
+      // Crossfade the stacked images based on the dissolve slider
       dissolve.addEventListener("input", (e) => {
         const v = +e.target.value / 100;
         rephoto.style.opacity = v;
         historic.style.opacity = 1 - v;
       });
 
+      // Close the overlay, restore page scroll, and re-open the map popup
       document.getElementById("overlay-close-btn").addEventListener("click", () => {
         overlay.style.display = "none";
         document.documentElement.style.overflow = ""; // restore scroll
@@ -609,7 +685,7 @@
         zoomMapToCurrentAndShowPopup();
       });
 
-      // Fit again on resize while overlay is visible
+      // Fit again on resize while overlay is visible (debounced to next frame)
       let resizeRaf = 0;
       window.addEventListener("resize", () => {
         if (overlay.style.display === "none") return;
@@ -620,7 +696,7 @@
         });
       });
 
-      // Prev/Next navigation
+      // Prev/Next navigation in overlay
       document.getElementById("prev-btn").addEventListener("click", () => {
         if (currentPhotoIndex > 0) updateOverlayByIndex(currentPhotoIndex - 1);
       });
@@ -631,7 +707,7 @@
 
       /* =====================================================
          Map content
-      ======================================================*/
+      ====================================================== */
       map.on("load", async () => {
         // When the photos source finishes, cache features for indexing
         map.on("sourcedata", (e) => {
@@ -650,7 +726,9 @@
         timeYear.textContent = "1776";
         slider.value = 0;
 
-        /* Base raster (Voyager) */
+        /* -----------------------------
+           Base raster (Voyager)
+        ------------------------------*/
         map.addSource("voyager", {
           type: "raster",
           tiles: [
@@ -668,7 +746,9 @@
           "paper-fibers-layer"
         );
 
-        /* Broadway history: fetch & filter by year */
+        /* -----------------------------
+           Broadway history: fetch & filter by year
+        ------------------------------*/
         fetch("overlays/Broadway_History.geojson")
           .then((r) => r.json())
           .then((data) => {
@@ -688,7 +768,9 @@
             });
           });
 
-        /* Hover popup for lines/stations */
+        /* -----------------------------
+           Hover popup for lines/stations
+        ------------------------------*/
         const hoverPopup = new maplibregl.Popup({
           closeButton: false,
           closeOnClick: false,
@@ -696,11 +778,10 @@
           className: "hover-tooltip",
         });
 
-        /* Indian Trails */
-        map.addSource("indian-trails", {
-          type: "geojson",
-          data: "overlays/indian-trails.geojson",
-        });
+        /* -----------------------------
+           Indian Trails
+        ------------------------------*/
+        map.addSource("indian-trails", { type: "geojson", data: "overlays/indian-trails.geojson" });
         map.addLayer({
           id: "indian-trails-layer",
           type: "line",
@@ -719,15 +800,11 @@
           },
         });
 
-        /* Elevated train */
-        map.addSource("elevated-train", {
-          type: "geojson",
-          data: "overlays/elevated-train.geojson",
-        });
-        map.addSource("elevated-stations", {
-          type: "geojson",
-          data: "overlays/elevated-stations.geojson",
-        });
+        /* -----------------------------
+           Elevated train
+        ------------------------------*/
+        map.addSource("elevated-train", { type: "geojson", data: "overlays/elevated-train.geojson" });
+        map.addSource("elevated-stations", { type: "geojson", data: "overlays/elevated-stations.geojson" });
         map.addLayer({
           id: "elevated-train-layer",
           type: "line",
@@ -756,20 +833,16 @@
               "#D8A903",
               "#4C6A72",
             ],
-            "circle-stroke-color": "#f9f7f1",
+            "circle-stroke-color": "var(--bg)",
             "circle-stroke-width": 1,
           },
         });
 
-        /* Subway */
-        map.addSource("subway-lines", {
-          type: "geojson",
-          data: "overlays/subway.geojson",
-        });
-        map.addSource("subway-stations", {
-          type: "geojson",
-          data: "overlays/subway-stations.geojson",
-        });
+        /* -----------------------------
+           Subway
+        ------------------------------*/
+        map.addSource("subway-lines", { type: "geojson", data: "overlays/subway.geojson" });
+        map.addSource("subway-stations", { type: "geojson", data: "overlays/subway-stations.geojson" });
         map.addLayer({
           id: "subway-lines-layer",
           type: "line",
@@ -798,12 +871,12 @@
               "#D8A903",
               "#8A9A5B",
             ],
-            "circle-stroke-color": "#f9f7f1",
+            "circle-stroke-color": "var(--bg)",
             "circle-stroke-width": 1,
           },
         });
 
-        // Hover state keys
+        // Hover state keys for feature-state toggling
         const hoverState = {
           hoveredIndianTrailId: null,
           hoveredElevatedId: null,
@@ -870,7 +943,9 @@
         addHover("subway-lines-layer", "subway-lines", "name");
         addHover("subway-stations-layer", "subway-stations", "name");
 
-        /* Camera icons + photos layer */
+        /* -----------------------------
+           Camera icons + photos layer
+        ------------------------------*/
         await loadSVGAsImage("camera", "svg/camera.svg");
 
         map.addSource("photos", { type: "geojson", data: "overlays/photos.geojson" });
@@ -935,63 +1010,29 @@
           currentPhotoIndex = photoFeatures.findIndex((f) => f.id === feature.id);
           if (window.currentPopup) window.currentPopup.remove();
 
-          const popupContainer = document.createElement("div");
-          Object.assign(popupContainer.style, {
-            maxWidth: "300px",
-            fontFamily: "'Fraunces', serif",
-            textAlign: "left",
-            lineHeight: "1.3",
-            backgroundColor: "#f9f7f1",
-            padding: "8px",
-            borderRadius: "6px",
-            boxShadow: "2px 2px 6px rgba(0,0,0,0.1)",
-          });
-
-          const img = new Image();
-          img.src = thumbUrl;
-          Object.assign(img.style, {
-            width: "100%",
-            height: "auto",
-            borderRadius: "4px",
-            cursor: fullUrl ? "pointer" : "default",
-          });
-
-          img.onload = () => {
-            popupContainer.appendChild(img);
-            if (fullUrl) {
-              img.addEventListener("click", (evt) => {
-                evt.preventDefault();
-                evt.stopPropagation();
-                if (window.currentPopup) {
-                  window.currentPopup.remove();
-                  window.currentPopup = null;
-                }
-                // Give the map/popup DOM two frames to settle before we measure/open.
+          const popupDom = buildPhotoPopupDom({
+            thumbUrl,
+            fullUrl,
+            title,
+            onThumbClick: () => {
+              if (window.currentPopup) {
+                window.currentPopup.remove();
+                window.currentPopup = null;
+              }
+              // Give the map/popup DOM two frames to settle before we measure/open.
+              requestAnimationFrame(() => {
                 requestAnimationFrame(() => {
-                  requestAnimationFrame(() => {
-                    updateOverlayByIndex(currentPhotoIndex);
-                  });
+                  updateOverlayByIndex(currentPhotoIndex);
                 });
               });
-            }
+            },
+          });
 
-            const titleDiv = document.createElement("div");
-            Object.assign(titleDiv.style, {
-              marginTop: "4px",
-              fontSize: "12px",
-              color: "#333",
-              wordWrap: "break-word",
-              overflowWrap: "break-word",
-            });
-            titleDiv.textContent = title;
-            popupContainer.appendChild(titleDiv);
-
-            const popup = new maplibregl.Popup({ offset: 15, closeOnClick: true })
-              .setLngLat(feature.geometry.coordinates)
-              .setDOMContent(popupContainer)
-              .addTo(map);
-            window.currentPopup = popup;
-          };
+          const popup = new maplibregl.Popup({ offset: 15, closeOnClick: true })
+            .setLngLat(feature.geometry.coordinates)
+            .setDOMContent(popupDom)
+            .addTo(map);
+          window.currentPopup = popup;
         });
 
         /* -----------------------------
