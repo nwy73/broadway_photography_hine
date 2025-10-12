@@ -269,7 +269,8 @@
         <label><input type="checkbox" id="broadway-toggle" checked /> Broadway</label><br />
         <label><input type="checkbox" id="subway-toggle" /> Subway</label><br />
         <label><input type="checkbox" id="elevated-toggle" /> Elevated Train</label><br />
-        <label><input type="checkbox" id="indian-trails-toggle" /> Indian Trails (Speculative)</label>
+        <label><input type="checkbox" id="indian-trails-toggle" /> Indian Trails (Speculative)</label><br />
+        <label><input type="checkbox" id="neighborhood-toggle" /> Neighborhoods</label>
       </section>
     </aside>
 
@@ -328,6 +329,7 @@
       const subwayToggle = document.getElementById("subway-toggle");
       const elevatedToggle = document.getElementById("elevated-toggle");
       const indianTrailsToggle = document.getElementById("indian-trails-toggle");
+      const neighborhoodToggle = document.getElementById("neighborhood-toggle");
       
       // Zoom control refs
       const zoomInBtn = document.getElementById("zoom-in");
@@ -783,6 +785,56 @@
         });
 
         /* -----------------------------
+           Neighborhoods
+        ------------------------------*/
+        map.addSource("neighborhoods", { type: "geojson", data: "overlays/neighborhoods.geojson" });
+
+        // Make a line layer with no fill
+        map.addLayer({
+          id: "neighborhoods-layer",
+          type: "line",
+          source: "neighborhoods",
+          layout: { visibility: "none" },
+          // Make the lines #006399 with a width of 1, transitioning to #D8A903 and a width of 2 on hover
+          paint: {
+            "line-color": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              "#D8A903",
+              "#006399",
+            ],
+            "line-width": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              2,
+              0.5,
+            ],
+            "line-opacity": 1,
+          },
+        });
+
+        map.addLayer({
+          id: "neighborhoods-fill-layer",
+          type: "fill",
+          source: "neighborhoods",
+          layout: { visibility: "none" },
+          paint: {
+            "fill-color": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              "#D8A903", // hover fill
+              "#006399"  // normal fill
+            ],
+            "fill-opacity": [
+              "case",
+              ["boolean", ["feature-state", "hover"], false],
+              0.3,
+              0.0
+            ]
+          }
+        });        
+
+        /* -----------------------------
            Indian Trails
         ------------------------------*/
         map.addSource("indian-trails", { type: "geojson", data: "overlays/indian-trails.geojson" });
@@ -882,52 +934,64 @@
 
         // Hover state keys for feature-state toggling
         const hoverState = {
-          hoveredIndianTrailId: null,
-          hoveredElevatedId: null,
-          hoveredElevatedStationId: null,
-          hoveredSubwayId: null,
-          hoveredSubwayStationId: null,
+          neighborhoods: null,
+          indianTrails: null,
+          elevatedTrain: null,
+          elevatedStations: null,
+          subwayLines: null,
+          subwayStations: null
         };
-        const hoverKeyForLayer = (layerId) =>
-          layerId.includes("indian")
-            ? "hoveredIndianTrailId"
-            : layerId.includes("elevated-stations")
-            ? "hoveredElevatedStationId"
-            : layerId.includes("elevated")
-            ? "hoveredElevatedId"
-            : layerId.includes("subway-stations")
-            ? "hoveredSubwayStationId"
-            : "hoveredSubwayId";
+
+        function hoverKeyForLayer(layerId) {
+          if (layerId.includes("neighborhoods")) return "neighborhoods";
+          if (layerId.includes("indian-trails")) return "indianTrails";
+          if (layerId.includes("elevated-train")) return "elevatedTrain";
+          if (layerId.includes("elevated-stations")) return "elevatedStations";
+          if (layerId.includes("subway-lines")) return "subwayLines";
+          if (layerId.includes("subway-stations")) return "subwayStations";
+          return null;
+        }
 
         /** Generic hover interaction with feature-state + tooltip */
-        function addHover(layerId, sourceId, nameProp = "name") {
+        function addHover(layerId, sourceId, nameProp) {
+          const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
+
           map.on("mousemove", layerId, (e) => {
-            const fs = map.queryRenderedFeatures(e.point, { layers: [layerId] });
-            if (!fs.length) {
-              map.getCanvas().style.cursor = "";
-              hoverPopup.remove();
-              return;
-            }
-            const f = fs[0];
+            if (!e.features.length) return;
+            const f = e.features[0];
             const key = hoverKeyForLayer(layerId);
-            if (hoverState[key] !== f.id) {
-              if (hoverState[key] !== null) {
-                map.setFeatureState(
-                  { source: sourceId, id: hoverState[key] },
-                  { hover: false }
-                );
-              }
-              hoverState[key] = f.id;
-              map.setFeatureState({ source: sourceId, id: f.id }, { hover: true });
+            if (!key) return;
+
+            // Remove previous hover
+            if (hoverState[key] !== null) {
+              map.setFeatureState(
+                { source: sourceId, id: hoverState[key] },
+                { hover: false }
+              );
             }
+
+            // Set new hover
+            if (f.id !== undefined) {
+              map.setFeatureState(
+                { source: sourceId, id: f.id },
+                { hover: true }
+              );
+              hoverState[key] = f.id;
+            }
+
+            map.getCanvas().style.cursor = "pointer";
+
+            // Tooltip
+            const name = f.properties[nameProp] || "Unnamed";
             hoverPopup
               .setLngLat(e.lngLat)
-              .setHTML(`<strong>${f.properties[nameProp] || "Unknown"}</strong>`)
+              .setHTML(`<div style="font-family:'Fraunces',serif;font-size:12px;">${name}</div>`)
               .addTo(map);
-            map.getCanvas().style.cursor = "pointer";
           });
 
           map.on("mouseleave", layerId, () => {
+            map.getCanvas().style.cursor = "";
+            hoverPopup.remove();
             const key = hoverKeyForLayer(layerId);
             if (hoverState[key] !== null) {
               map.setFeatureState(
@@ -936,11 +1000,10 @@
               );
               hoverState[key] = null;
             }
-            map.getCanvas().style.cursor = "";
-            hoverPopup.remove();
           });
         }
 
+        addHover("neighborhoods-fill-layer", "neighborhoods", "name");
         addHover("indian-trails-layer", "indian-trails", "name");
         addHover("elevated-train-layer", "elevated-train", "name");
         addHover("elevated-stations-layer", "elevated-stations", "name");
@@ -1053,7 +1116,11 @@
         setVisibility(["subway-lines-layer", "subway-stations-layer"], subwayToggle.checked);
         setVisibility(["elevated-train-layer", "elevated-stations-layer"], elevatedToggle.checked);
         setVisibility(["indian-trails-layer"], indianTrailsToggle.checked);
+        setVisibility(["neighborhoods-fill-layer", "neighborhoods-layer"], neighborhoodToggle.checked);
         // Change listeners
+        neighborhoodToggle.addEventListener("change", () =>
+          setVisibility(["neighborhoods-fill-layer", "neighborhoods-layer"], neighborhoodToggle.checked)
+        );
         indianTrailsToggle.addEventListener("change", () =>
           setVisibility(["indian-trails-layer"], indianTrailsToggle.checked)
         );
