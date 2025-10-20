@@ -572,6 +572,82 @@
     let photoFeatures = [];
     let currentPhotoIndex = -1;
 
+    // ---- Filtered navigation state (NEW) ----
+    let navPhotoFeatures = []; // photos matching current tag filter
+    const idToNavIndex = new Map(); // feature.id -> index in navPhotoFeatures
+
+    function getSelectedTags() {
+      const selected = [];
+      photoTagFields.forEach(tag => {
+        const safeId = tag.replace(/[^\w-]/g, "_");
+        const cb = document.getElementById(`tag-${safeId}`);
+        if (cb && cb.checked) selected.push(tag);
+      });
+      return selected;
+    }
+
+    function featureMatchesTags(f, selectedTags) {
+      // every selected tag field must equal "x"
+      return selectedTags.every(tag => (f.properties?.[tag] || "") === "x");
+    }
+
+    function updateNavUiEnabledState() {
+      const has = navPhotoFeatures.length > 0;
+      document.getElementById("prev-btn").disabled = !has;
+      document.getElementById("next-btn").disabled = !has;
+      document.getElementById("prev-label").style.opacity = has ? 1 : 0.5;
+      document.getElementById("next-label").style.opacity = has ? 1 : 0.5;
+    }
+
+    // Recompute the nav list based on current tags
+    function rebuildNavList() {
+      // If Photos master toggle is off, keep nav list empty
+      if (!photoToggle.checked) {
+        navPhotoFeatures = [];
+        idToNavIndex.clear();
+
+        // If overlay is open, close it; reset state
+        if (overlay.style.display !== "none") {
+          overlay.style.display = "none";
+          document.documentElement.style.overflow = "";
+          currentPhotoIndex = -1;
+        }
+
+        // Also remove any open popup
+        if (window.currentPopup) {
+          window.currentPopup.remove();
+          window.currentPopup = null;
+        }
+
+        updateNavUiEnabledState();
+        return;
+      }
+
+      const selected = getSelectedTags();
+      if (selected.length === 0) {
+        navPhotoFeatures = photoFeatures.slice();
+      } else {
+        navPhotoFeatures = photoFeatures.filter(f => featureMatchesTags(f, selected));
+      }
+
+      idToNavIndex.clear();
+      navPhotoFeatures.forEach((f, i) => idToNavIndex.set(f.id, i));
+
+      // If overlay is open and current index no longer valid, adjust or close
+      if (overlay.style.display !== "none") {
+        if (navPhotoFeatures.length === 0) {
+          overlay.style.display = "none";
+          document.documentElement.style.overflow = "";
+          currentPhotoIndex = -1;
+        } else if (currentPhotoIndex >= navPhotoFeatures.length) {
+          currentPhotoIndex = navPhotoFeatures.length - 1;
+          updateOverlayByIndex(currentPhotoIndex);
+        }
+      }
+
+      updateNavUiEnabledState();
+    }
+
     /* =====================================================
        Small utilities
     ====================================================== */
@@ -775,7 +851,7 @@
      * Zoom the map to the current photo and show its popup (after viewer close).
      */
     function zoomMapToCurrentAndShowPopup() {
-      const feature = photoFeatures[currentPhotoIndex];
+      const feature = navPhotoFeatures[currentPhotoIndex];
       if (!feature) return;
 
       map.easeTo({
@@ -815,9 +891,9 @@
      * Load a photo by index and show overlay with robust recentering.
      */
     async function updateOverlayByIndex(index) {
-      if (index < 0 || index >= photoFeatures.length) return;
+      if (index < 0 || index >= navPhotoFeatures.length) return;
 
-      const feature = photoFeatures[index];
+      const feature = navPhotoFeatures[index];
       currentPhotoIndex = index;
 
       // Reset pan/zoom and containment state
@@ -895,7 +971,7 @@
       if (currentPhotoIndex > 0) updateOverlayByIndex(currentPhotoIndex - 1);
     });
     document.getElementById("next-btn").addEventListener("click", () => {
-      if (currentPhotoIndex < photoFeatures.length - 1)
+      if (currentPhotoIndex < navPhotoFeatures.length - 1)
         updateOverlayByIndex(currentPhotoIndex + 1);
     });
     document.getElementById("prev-label").addEventListener("click", () => {
@@ -919,6 +995,7 @@
           map.getSource("photos")._data
         ) {
           photoFeatures = map.getSource("photos")._data.features || [];
+          rebuildNavList(); // keep nav list in sync with current tag selection
         }
       });
 
@@ -1344,7 +1421,8 @@
         const fullUrl = feature.properties.full || "";
         const title = feature.properties.title || "";
 
-        currentPhotoIndex = photoFeatures.findIndex((f) => f.id === feature.id);
+        currentPhotoIndex = idToNavIndex.has(feature.id) ? idToNavIndex.get(feature.id) : -1;
+        if (currentPhotoIndex === -1) return; // not in filtered set; bail
         if (window.currentPopup) window.currentPopup.remove();
 
         const popupDom = buildPhotoPopupDom({
@@ -1409,6 +1487,7 @@
             const checkbox = document.getElementById(`tag-${safeId}`);
             if (checkbox) checkbox.checked = false;
           });
+          rebuildNavList(); // clear nav list to match empty/hidden state
         } else {
           detailsEl.classList.remove("no-toggle");
           updatePhotoLayerFilter();
@@ -1560,6 +1639,7 @@
         });
         map.setFilter("photos-layer", filters);
       }
+      rebuildNavList();
     }
   </script>
 </body>
