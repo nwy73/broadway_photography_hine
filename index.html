@@ -385,11 +385,16 @@
       <div id="overlay-content">
         <div id="overlay-sidebar">
           <div id="overlay-title">Photo Title Placeholder</div>
-          <p style="font-size:12px;color:#555;margin:0;">Previous &larr; &rarr; Next</p>
-          <div id="overlay-navigation" style="margin:0;display:flex;gap:8px;">
-            <button id="prev-btn" aria-label="Previous photo">&larr;</button>
-            <button id="next-btn" aria-label="Next photo">&rarr;</button>
-          </div>
+<div id="overlay-navigation" style="display: flex; gap: 12px; align-items: center; font-size: 12px; color: #555; cursor: pointer;">
+  <div style="display: flex; align-items: center; gap: 4px;">
+    <span id="prev-label">Previous</span>
+    <button id="prev-btn" aria-label="Previous photo">&larr;</button>
+  </div>
+  <div style="display: flex; align-items: center; gap: 4px;">
+    <button id="next-btn" aria-label="Next photo">&rarr;</button>
+    <span id="next-label">Next</span>
+  </div>
+</div>
           <label for="dissolve-slider">Dissolve Between Historic and Rephoto</label>
           <input type="range" id="dissolve-slider" min="0" max="100" value="0" />
         </div>
@@ -814,6 +819,13 @@
       document.getElementById("next-btn").addEventListener("click", () => {
         if (currentPhotoIndex < photoFeatures.length - 1)
           updateOverlayByIndex(currentPhotoIndex + 1);
+      });
+      document.getElementById("prev-label").addEventListener("click", () => {
+        document.getElementById("prev-btn").click();
+      });
+
+      document.getElementById("next-label").addEventListener("click", () => {
+        document.getElementById("next-btn").click();
       });
 
       /* =====================================================
