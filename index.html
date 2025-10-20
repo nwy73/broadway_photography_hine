@@ -241,6 +241,86 @@
 
       #zoom-controls button:hover { background: #fff; }
 
+      /* -----------------------------
+        Normalize <details> behavior
+      ------------------------------ */
+
+      #layer-toggle {
+        font-family: "Fraunces", serif;
+        font-size: 14px;
+        line-height: 1.4;
+        color: var(--ink-muted);
+      }
+
+      #layer-checkboxes {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2em; /* small consistent spacing between all checkboxes */
+        padding-left: 0;
+        margin: 0;
+      }
+
+      /* Make all top-level checkboxes (Photos, Broadway, etc.) match in layout */
+      #layer-checkboxes > label,
+      #layer-checkboxes > details {
+        display: block;
+        padding-left: 1.5em;
+        font-size: 0.95em;
+        color: var(--ink-muted);
+        margin: 0; /* reset any default spacing */
+      }
+
+      /* Normalize Photos summary */
+      #photos-details summary {
+        display: flex;
+        align-items: center;
+        cursor: pointer;
+        margin: 0;
+        padding: 0;
+      }
+
+      /* Add arrow icon */
+      #photos-details summary::before {
+        content: "▸";
+        display: inline-block;
+        transform: rotate(0deg);
+        transition: transform 0.2s ease;
+        margin-right: 0.4em;
+        font-size: 0.8em;
+        color: var(--ink-muted);
+      }
+      #photos-details[open] summary::before {
+        transform: rotate(90deg);
+      }
+
+      /* Remove arrow when disabled */
+      #photos-details.no-toggle summary::before {
+        display: none;
+      }
+
+      /* Inner label for summary */
+      #photos-details .summary-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.4em;
+      }
+
+      /* Tag filters inside Photos dropdown */
+      #photo-tags-container {
+        margin: 0.2em 0 0 0;
+        padding: 0;
+      }
+
+      #photo-tags-container label {
+        display: block;
+        padding-left: 3em; /* deeper indent for nested tags */
+        font-size: 0.9em;
+        margin: 0.1em 0;
+        color: var(--ink-muted);
+      }
+
+
+
     </style>
   </head>
 
@@ -266,12 +346,36 @@
       </section>
 
       <section id="layer-toggle">
-        <label><input type="checkbox" id="broadway-toggle" checked /> Broadway</label><br />
-        <label><input type="checkbox" id="subway-toggle" /> Subway</label><br />
-        <label><input type="checkbox" id="elevated-toggle" /> Elevated Train</label><br />
-        <label><input type="checkbox" id="indian-trails-toggle" /> Indian Trails (Speculative)</label><br />
-        <label><input type="checkbox" id="neighborhood-toggle" /> Neighborhoods</label>
+        <div id="layer-checkboxes">
+          <!-- Other layer checkboxes -->
+          <label class="layer-checkbox">
+            <input type="checkbox" id="broadway-toggle" checked /> Broadway
+          </label>
+          <label class="layer-checkbox">
+            <input type="checkbox" id="subway-toggle" /> Subway
+          </label>
+          <label class="layer-checkbox">
+            <input type="checkbox" id="elevated-toggle" /> Elevated Train
+          </label>
+          <label class="layer-checkbox">
+            <input type="checkbox" id="indian-trails-toggle" /> Indigenous Trails (Speculative)
+          </label>
+          <label class="layer-checkbox">
+            <input type="checkbox" id="neighborhood-toggle" /> Neighborhoods
+          </label>
+          <!-- Photos with tag filters -->
+          <details id="photos-details" open>
+            <summary id="photos-summary">
+              <span class="summary-label">
+                <input type="checkbox" id="photo-toggle" checked />
+                Photos
+              </span>
+            </summary>
+            <div id="photo-tags-container"></div>
+          </details>          
+        </div>
       </section>
+
     </aside>
 
     <!-- ============================
@@ -325,6 +429,7 @@
       const timeYear = document.getElementById("time-year");
       const slider = document.getElementById("slider");
 
+      const photoToggle = document.getElementById("photo-toggle");
       const broadwayToggle = document.getElementById("broadway-toggle");
       const subwayToggle = document.getElementById("subway-toggle");
       const elevatedToggle = document.getElementById("elevated-toggle");
@@ -1027,6 +1132,7 @@
             "icon-allow-overlap": false,
             "icon-anchor": "center",
             "icon-rotate": ["+", ["get", "orientation"], 180],
+            "visibility": "visible",
           },
           paint: {
             "icon-opacity": [
@@ -1112,12 +1218,35 @@
           });
         };
         // Initial
+        setVisibility(["photos-layer"], photoToggle.checked);
         setVisibility(["broadway-layer", "broadway-history-layer"], broadwayToggle.checked);
         setVisibility(["subway-lines-layer", "subway-stations-layer"], subwayToggle.checked);
         setVisibility(["elevated-train-layer", "elevated-stations-layer"], elevatedToggle.checked);
         setVisibility(["indian-trails-layer"], indianTrailsToggle.checked);
         setVisibility(["neighborhoods-fill-layer", "neighborhoods-layer"], neighborhoodToggle.checked);
         // Change listeners
+        photoToggle.addEventListener("change", () => {
+          const isVisible = photoToggle.checked;
+          setVisibility(["photos-layer"], isVisible);
+
+          const detailsEl = document.getElementById("photos-details");
+
+          if (!isVisible) {
+            map.setFilter("photos-layer", null);
+            detailsEl.open = false;
+            detailsEl.classList.add("no-toggle"); // Just disables dropdown behavior
+
+            // Uncheck all tag filters
+            photoTagFields.forEach(tag => {
+              const safeId = tag.replace(/[^\w-]/g, "_");
+              const checkbox = document.getElementById(`tag-${safeId}`);
+              if (checkbox) checkbox.checked = false;
+            });
+          } else {
+            detailsEl.classList.remove("no-toggle");
+            updatePhotoLayerFilter();
+          }
+        });
         neighborhoodToggle.addEventListener("change", () =>
           setVisibility(["neighborhoods-fill-layer", "neighborhoods-layer"], neighborhoodToggle.checked)
         );
@@ -1195,6 +1324,72 @@
           }
         });
       });
+
+      /* =====================================================
+         Photo tag filtering
+      ====================================================== */
+
+      const photoTagFields = [
+        "Signage",
+        "Street_Uses",
+        "Architectural_Heritage_&_Holdouts",
+        "Borders_&_Boundaries",
+        "Nature_in_the_City",
+        "Popular_Culture",
+        "Night/Illumination",
+        "Revolutionary_Traces",
+        "Squatter_Wars",
+        "Odology"
+      ];
+
+      const tagContainer = document.getElementById("photo-tags-container");
+
+      photoTagFields.forEach(tag => {
+        const safeId = tag.replace(/[^\w-]/g, "_"); // valid ID
+        const readableLabel = tag === "Squatter_Wars"
+        ? `"Squatter Wars"` // ← Double quotes around label only
+        : tag.replace(/_/g, " ");
+
+        const checkbox = document.createElement("input");
+        checkbox.type = "checkbox";
+        checkbox.id = `tag-${safeId}`;
+        checkbox.dataset.tag = tag;
+
+        const label = document.createElement("label");
+        label.style.display = "block";
+        label.style.margin = "2px 0";
+        label.appendChild(checkbox);
+        label.append(` ${readableLabel}`);
+
+        tagContainer.appendChild(label);
+
+        checkbox.addEventListener("change", updatePhotoLayerFilter);
+      });
+
+      function updatePhotoLayerFilter() {
+        const selectedTags = [];
+
+        photoTagFields.forEach(tag => {
+          const safeId = tag.replace(/[^\w-]/g, "_");
+          const checkbox = document.getElementById(`tag-${safeId}`);
+          if (checkbox && checkbox.checked) {
+            selectedTags.push(tag);
+          }
+        });
+
+        if (selectedTags.length === 0) {
+          // No filter — show all features
+          map.setFilter("photos-layer", null);
+        } else {
+          // Filter: selected tag fields equal to "x"
+          const filters = ["all"];
+          selectedTags.forEach(tag => {
+            filters.push(["==", ["get", tag], "x"]);
+          });
+          map.setFilter("photos-layer", filters);
+        }
+      }
+
     </script>
   </body>
 </html>
