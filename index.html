@@ -1,717 +1,1351 @@
 <!DOCTYPE html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <title>Broadway Vector Tiles</title>
 
-    <!-- MapLibre + fonts -->
-    <link href="https://unpkg.com/maplibre-gl@^5.6.2/dist/maplibre-gl.css" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Jacques+Francois&display=swap" rel="stylesheet" />
-    <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;700&display=swap" rel="stylesheet" />
+<head>
+  <meta charset="UTF-8" />
+  <title>Broadway Vector Tiles</title>
 
-    <style>
-      /* =====================================================
+  <!-- MapLibre + fonts -->
+  <link href="https://unpkg.com/maplibre-gl@^5.6.2/dist/maplibre-gl.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Jacques+Francois&display=swap" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:wght@400;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* =====================================================
          Design tokens / base
       ====================================================== */
-      :root {
-        --bg: #f9f7f1;
-        --ink: #333;
-        --ink-muted: #555;
-        --panel: #e6d1aa;
-        --shadow-sm: 2px 2px 6px rgba(0, 0, 0, 0.1);
-        --shadow-lg: 0 0 12px rgba(0, 0, 0, 0.3);
-        --radius: 8px;
-        --gap: 12px;
-      }
+    :root {
+      --bg: #f9f7f1;
+      --ink: #333;
+      --ink-muted: #555;
+      --panel: #e6d1aa;
+      --shadow-sm: 2px 2px 6px rgba(0, 0, 0, 0.1);
+      --shadow-lg: 0 0 12px rgba(0, 0, 0, 0.3);
+      --radius: 8px;
+      --gap: 12px;
+    }
 
-      @font-face {
-        font-family: "CGHine";
-        src: url("./font/CgHine-Regular.ttf") format("truetype");
-        font-weight: normal;
-        font-style: normal;
-        font-display: swap;
-      }
+    @font-face {
+      font-family: "CGHine";
+      src: url("./font/CgHine-Regular.ttf") format("truetype");
+      font-weight: normal;
+      font-style: normal;
+      font-display: swap;
+    }
 
-      html,
-      body {
-        margin: 0;
-        padding: 0;
-        height: 100%;
-        background: var(--bg);
-      }
+    html,
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: var(--bg);
+    }
 
-      /* =====================================================
+    /* =====================================================
          Map layout
       ====================================================== */
-      #map-container,
-      #map {
-        position: absolute;
-        inset: 0;
-      }
+    #map-container,
+    #map {
+      position: absolute;
+      inset: 0;
+    }
 
-      /* =====================================================
+    /* =====================================================
          Control panel (sliders + toggles)
       ====================================================== */
-      #slider-container {
-        font-family: "Jacques Francois", serif;
-        background-color: var(--bg);
-        border: 1px solid #ccc;
-        padding: 12px;
-        width: 280px;
-        box-shadow: var(--shadow-sm);
-        border-radius: 6px;
-        position: absolute;
-        top: 10px;
-        right: 10px;
-        z-index: 2;
-        display: flex;
-        flex-direction: column;
-        gap: 20px;
-      }
+    #slider-container {
+      font-family: "Jacques Francois", serif;
+      background-color: var(--bg);
+      border: 1px solid #ccc;
+      padding: 12px;
+      width: 280px;
+      box-shadow: var(--shadow-sm);
+      border-radius: 6px;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
 
-      #opacity-labels,
-      #slider-container label {
-        font-size: 0.9em;
-        color: var(--ink-muted);
-      }
+    #opacity-labels,
+    #slider-container label {
+      font-size: 0.9em;
+      color: var(--ink-muted);
+    }
 
-      #opacity-labels {
-        display: flex;
-        justify-content: space-between;
-        margin-bottom: 6px;
-        user-select: none;
-      }
+    #opacity-labels {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 6px;
+      user-select: none;
+    }
 
-      input[type="range"] {
-        width: 100%;
-      }
+    input[type="range"] {
+      width: 100%;
+    }
 
-      #time-year {
-        font-size: 0.9em;
-        margin-left: 8px;
-        color: var(--ink-muted);
-      }
+    #time-year {
+      font-size: 0.9em;
+      margin-left: 8px;
+      color: var(--ink-muted);
+    }
 
-      /* =====================================================
+    /* =====================================================
          MapLibre popups
       ====================================================== */
-      .maplibregl-popup-content {
-        max-height: calc(100vh - 40px);
-        overflow-y: auto;
-      }
-      .maplibregl-popup {
-        max-width: 300px;
-      }
+    .maplibregl-popup-content {
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+    }
 
-      /* =====================================================
+    .maplibregl-popup {
+      max-width: 300px;
+    }
+
+    /* =====================================================
          Fullscreen overlay (image viewer)
       ====================================================== */
-      #fullscreen-overlay {
-        position: fixed;
-        inset: 0;
-        width: 100vw;
-        height: 100vh;
-        background-color: rgba(0, 0, 0, 0.8);
-        z-index: 9999;
-        display: none; /* toggled via JS */
-        justify-content: center;
-        align-items: center;
-      }
+    #fullscreen-overlay {
+      position: fixed;
+      inset: 0;
+      width: 100vw;
+      height: 100vh;
+      background-color: rgba(0, 0, 0, 0.8);
+      z-index: 9999;
+      display: none;
+      /* toggled via JS */
+      justify-content: center;
+      align-items: center;
+    }
 
-      #overlay-content {
-        display: flex;
-        width: 90%;
-        height: 90%;
-        background-color: var(--bg);
-        border-radius: var(--radius);
-        overflow: hidden;
-        box-shadow: var(--shadow-lg);
-      }
+    #overlay-content {
+      display: flex;
+      width: 90%;
+      height: 90%;
+      background-color: var(--bg);
+      border-radius: var(--radius);
+      overflow: hidden;
+      box-shadow: var(--shadow-lg);
+    }
 
-      #overlay-sidebar {
-        width: 30%;
-        padding: 24px;
-        box-sizing: border-box;
-        background-color: var(--panel);
-        background-image: url("png/clean-textile.png");
-        background-repeat: repeat;
-        font-family: "Fraunces", serif;
-        color: var(--ink);
-        display: flex;
-        flex-direction: column;
-        gap: 10px;
-      }
+    #overlay-sidebar {
+      width: 30%;
+      padding: 24px;
+      box-sizing: border-box;
+      background-color: var(--panel);
+      background-image: url("png/clean-textile.png");
+      background-repeat: repeat;
+      font-family: "Fraunces", serif;
+      color: var(--ink);
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
 
-      #overlay-title {
-        font-size: 1.2em;
-        line-height: 1.4;
-        word-wrap: break-word;
-        text-align: left;
-      }
+    #overlay-title {
+      font-size: 1.2em;
+      line-height: 1.4;
+      word-wrap: break-word;
+      text-align: left;
+    }
 
-      #overlay-image-container {
-        width: 70%;
-        position: relative;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background-color: #222;
-        padding: 24px;
-        box-sizing: border-box;
-        overflow: hidden;
-      }
+    #overlay-image-container {
+      width: 70%;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background-color: #222;
+      padding: 24px;
+      box-sizing: border-box;
+      overflow: hidden;
+    }
 
-      /* Pan/zoom target wrapper */
-      #rephoto-wrap {
-        position: absolute;
-        inset: 12px; /* matches container padding visually */
-        box-sizing: border-box;
-        transform-origin: 0 0;
-        touch-action: none;
-        will-change: transform;
-        overflow: hidden; /* keep images clipped */
-      }
+    /* Pan/zoom target wrapper */
+    #rephoto-wrap {
+      position: absolute;
+      inset: 12px;
+      /* matches container padding visually */
+      box-sizing: border-box;
+      transform-origin: 0 0;
+      touch-action: none;
+      will-change: transform;
+      overflow: hidden;
+      /* keep images clipped */
+    }
 
-      /* Stacked images fill wrapper; keep full image visible */
+    /* Stacked images fill wrapper; keep full image visible */
+    #rephoto-wrap img {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      border-radius: 4px;
+      transition: opacity 0.3s ease;
+      user-select: none;
+      -webkit-user-drag: none;
+    }
+
+    #historic-image {
+      z-index: 1;
+      opacity: 1;
+    }
+
+    #rephoto-image {
+      z-index: 2;
+      opacity: 0;
+    }
+
+    /* Overlay close button */
+    #overlay-close-btn {
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      background-color: rgba(255, 255, 255, 0.9);
+      border: none;
+      border-radius: 50%;
+      font-size: 1.2em;
+      padding: 6px 10px;
+      cursor: pointer;
+      font-weight: bold;
+      line-height: 1;
+      color: #333;
+      transition: background-color 0.2s;
+      z-index: 9000;
+    }
+
+    #overlay-close-btn:hover {
+      background-color: #fff;
+    }
+
+    #fullscreen-overlay label[for="dissolve-slider"] {
+      font-size: 12px;
+      margin-top: 20px;
+      display: block;
+    }
+
+    /* Respect reduced motion for overlay fades/opacity transitions */
+    @media (prefers-reduced-motion: reduce) {
       #rephoto-wrap img {
-        position: absolute;
-        inset: 0;
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        border-radius: 4px;
-        transition: opacity 0.3s ease;
-        user-select: none;
-        -webkit-user-drag: none;
+        transition: none;
       }
-      #historic-image { z-index: 1; opacity: 1; }
-      #rephoto-image  { z-index: 2; opacity: 0; }
+    }
 
-      /* Overlay close button */
-      #overlay-close-btn {
-        position: absolute;
-        top: 16px;
-        right: 16px;
-        background-color: rgba(255, 255, 255, 0.9);
-        border: none;
-        border-radius: 50%;
-        font-size: 1.2em;
-        padding: 6px 10px;
-        cursor: pointer;
-        font-weight: bold;
-        line-height: 1;
-        color: #333;
-        transition: background-color 0.2s;
-        z-index: 9000;
-      }
-      #overlay-close-btn:hover { background-color: #fff; }
-
-      #fullscreen-overlay label[for="dissolve-slider"] {
-        font-size: 12px;
-        margin-top: 20px;
-        display: block;
-      }
-
-      /* Respect reduced motion for overlay fades/opacity transitions */
-      @media (prefers-reduced-motion: reduce) {
-        #rephoto-wrap img { transition: none; }
-      }
-
-      /* =====================================================
+    /* =====================================================
         Zoom controls (overlay)
       ====================================================== */
-      #zoom-controls {
-        position: absolute;
-        left: 16px;
-        top: 16px;
-        display: flex;
-        gap: 8px;
-        z-index: 9001;
-      }
+    #zoom-controls {
+      position: absolute;
+      left: 16px;
+      top: 16px;
+      display: flex;
+      gap: 8px;
+      z-index: 9001;
+    }
 
-      #zoom-controls button {
-        background: rgba(255, 255, 255, 0.95);
-        border: 1px solid #ddd;
-        border-radius: 6px;
-        padding: 6px 10px;
-        font-size: 14px;
-        cursor: pointer;
-        box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
-      }
+    #zoom-controls button {
+      background: rgba(255, 255, 255, 0.95);
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 14px;
+      cursor: pointer;
+      box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
+    }
 
-      #zoom-controls button:hover { background: #fff; }
+    #zoom-controls button:hover {
+      background: #fff;
+    }
 
-      /* -----------------------------
+    /* -----------------------------
         Normalize <details> behavior
       ------------------------------ */
 
-      #layer-toggle {
-        font-family: "Fraunces", serif;
-        font-size: 14px;
-        line-height: 1.4;
-        color: var(--ink-muted);
-      }
+    #layer-toggle {
+      font-family: "Fraunces", serif;
+      font-size: 14px;
+      line-height: 1.4;
+      color: var(--ink-muted);
+    }
 
-      #layer-checkboxes {
-        display: flex;
-        flex-direction: column;
-        gap: 0.2em; /* small consistent spacing between all checkboxes */
-        padding-left: 0;
-        margin: 0;
-      }
+    #layer-checkboxes {
+      display: flex;
+      flex-direction: column;
+      gap: 0.2em;
+      /* small consistent spacing between all checkboxes */
+      padding-left: 0;
+      margin: 0;
+    }
 
-      /* Make all top-level checkboxes (Photos, Broadway, etc.) match in layout */
-      #layer-checkboxes > label,
-      #layer-checkboxes > details {
-        display: block;
-        padding-left: 1.5em;
-        font-size: 0.95em;
-        color: var(--ink-muted);
-        margin: 0; /* reset any default spacing */
-      }
+    /* Make all top-level checkboxes (Photos, Broadway, etc.) match in layout */
+    #layer-checkboxes>label,
+    #layer-checkboxes>details {
+      display: block;
+      padding-left: 1.5em;
+      font-size: 0.95em;
+      color: var(--ink-muted);
+      margin: 0;
+      /* reset any default spacing */
+    }
 
-      /* Normalize Photos summary */
-      #photos-details summary {
-        display: flex;
-        align-items: center;
-        cursor: pointer;
-        margin: 0;
-        padding: 0;
-      }
+    /* Normalize Photos summary */
+    #photos-details summary {
+      display: flex;
+      align-items: center;
+      cursor: pointer;
+      margin: 0;
+      padding: 0;
+    }
 
-      /* Add arrow icon */
-      #photos-details summary::before {
-        content: "▸";
-        display: inline-block;
-        transform: rotate(0deg);
-        transition: transform 0.2s ease;
-        margin-right: 0.4em;
-        font-size: 0.8em;
-        color: var(--ink-muted);
-      }
-      #photos-details[open] summary::before {
-        transform: rotate(90deg);
-      }
+    /* Add arrow icon */
+    #photos-details summary::before {
+      content: "▸";
+      display: inline-block;
+      transform: rotate(0deg);
+      transition: transform 0.2s ease;
+      margin-right: 0.4em;
+      font-size: 0.8em;
+      color: var(--ink-muted);
+    }
 
-      /* Remove arrow when disabled */
-      #photos-details.no-toggle summary::before {
-        display: none;
-      }
+    #photos-details[open] summary::before {
+      transform: rotate(90deg);
+    }
 
-      /* Inner label for summary */
-      #photos-details .summary-label {
-        display: inline-flex;
-        align-items: center;
-        gap: 0.4em;
-      }
+    /* Remove arrow when disabled */
+    #photos-details.no-toggle summary::before {
+      display: none;
+    }
 
-      /* Tag filters inside Photos dropdown */
-      #photo-tags-container {
-        margin: 0.2em 0 0 0;
-        padding: 0;
-      }
+    /* Inner label for summary */
+    #photos-details .summary-label {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.4em;
+    }
 
-      #photo-tags-container label {
-        display: block;
-        padding-left: 3em; /* deeper indent for nested tags */
-        font-size: 0.9em;
-        margin: 0.1em 0;
-        color: var(--ink-muted);
-      }
+    /* Tag filters inside Photos dropdown */
+    #photo-tags-container {
+      margin: 0.2em 0 0 0;
+      padding: 0;
+    }
 
+    #photo-tags-container label {
+      display: block;
+      padding-left: 3em;
+      /* deeper indent for nested tags */
+      font-size: 0.9em;
+      margin: 0.1em 0;
+      color: var(--ink-muted);
+    }
+  </style>
+</head>
 
-
-    </style>
-  </head>
-
-  <body>
-    <!-- ============================
+<body>
+  <!-- ============================
          Map canvas
     ============================= -->
-    <div id="map-container"><div id="map"></div></div>
+  <div id="map-container">
+    <div id="map"></div>
+  </div>
 
-    <!-- ============================
+  <!-- ============================
          UI Panel
     ============================= -->
-    <aside id="slider-container" aria-label="Map controls">
-      <section id="opacity-slider">
-        <div id="opacity-labels"><span>Historic Map</span><span>Contemporary Map</span></div>
-        <input type="range" id="slider" min="0" max="100" value="0" />
-      </section>
+  <aside id="slider-container" aria-label="Map controls">
+    <section id="opacity-slider">
+      <div id="opacity-labels"><span>Historic Map</span><span>Contemporary Map</span></div>
+      <input type="range" id="slider" min="0" max="100" value="0" />
+    </section>
 
-      <section id="time-slider">
-        <label for="time-slider-input">Historic Progression of Broadway</label>
-        <input type="range" id="time-slider-input" min="1776" max="1906" value="1776" step="1" />
-        <span id="time-year" aria-live="polite">1776</span>
-      </section>
+    <section id="time-slider">
+      <label for="time-slider-input">Historic Progression of Broadway</label>
+      <input type="range" id="time-slider-input" min="1776" max="1906" value="1776" step="1" />
+      <span id="time-year" aria-live="polite">1776</span>
+    </section>
 
-      <section id="layer-toggle">
-        <div id="layer-checkboxes">
-          <!-- Other layer checkboxes -->
-          <label class="layer-checkbox">
-            <input type="checkbox" id="broadway-toggle" checked /> Broadway
-          </label>
-          <label class="layer-checkbox">
-            <input type="checkbox" id="subway-toggle" /> Subway
-          </label>
-          <label class="layer-checkbox">
-            <input type="checkbox" id="elevated-toggle" /> Elevated Train
-          </label>
-          <label class="layer-checkbox">
-            <input type="checkbox" id="indian-trails-toggle" /> Indigenous Trails (Speculative)
-          </label>
-          <label class="layer-checkbox">
-            <input type="checkbox" id="neighborhood-toggle" /> Neighborhoods
-          </label>
-          <!-- Photos with tag filters -->
-          <details id="photos-details" open>
-            <summary id="photos-summary">
-              <span class="summary-label">
-                <input type="checkbox" id="photo-toggle" checked />
-                Photos
-              </span>
-            </summary>
-            <div id="photo-tags-container"></div>
-          </details>          
-        </div>
-      </section>
+    <section id="layer-toggle">
+      <div id="layer-checkboxes">
+        <!-- Other layer checkboxes -->
+        <label class="layer-checkbox">
+          <input type="checkbox" id="broadway-toggle" checked /> Broadway
+        </label>
+        <label class="layer-checkbox">
+          <input type="checkbox" id="subway-toggle" /> Subway
+        </label>
+        <label class="layer-checkbox">
+          <input type="checkbox" id="elevated-toggle" /> Elevated Train
+        </label>
+        <label class="layer-checkbox">
+          <input type="checkbox" id="indian-trails-toggle" /> Indigenous Trails (Speculative)
+        </label>
+        <label class="layer-checkbox">
+          <input type="checkbox" id="neighborhood-toggle" /> Neighborhoods
+        </label>
+        <!-- Photos with tag filters -->
+        <details id="photos-details" open>
+          <summary id="photos-summary">
+            <span class="summary-label">
+              <input type="checkbox" id="photo-toggle" checked />
+              Photos
+            </span>
+          </summary>
+          <div id="photo-tags-container"></div>
+        </details>
+      </div>
+    </section>
 
-    </aside>
+  </aside>
 
-    <!-- ============================
+  <!-- ============================
          Fullscreen Overlay
     ============================= -->
-    <div id="fullscreen-overlay" role="dialog" aria-modal="true" aria-label="Historic photo viewer">
-      <div id="overlay-content">
-        <div id="overlay-sidebar">
-          <div id="overlay-title">Photo Title Placeholder</div>
-<div id="overlay-navigation" style="display: flex; gap: 12px; align-items: center; font-size: 12px; color: #555; cursor: pointer;">
-  <div style="display: flex; align-items: center; gap: 4px;">
-    <span id="prev-label">Previous</span>
-    <button id="prev-btn" aria-label="Previous photo">&larr;</button>
-  </div>
-  <div style="display: flex; align-items: center; gap: 4px;">
-    <button id="next-btn" aria-label="Next photo">&rarr;</button>
-    <span id="next-label">Next</span>
-  </div>
-</div>
-          <label for="dissolve-slider">Dissolve Between Historic and Rephoto</label>
-          <input type="range" id="dissolve-slider" min="0" max="100" value="0" />
+  <div id="fullscreen-overlay" role="dialog" aria-modal="true" aria-label="Historic photo viewer">
+    <div id="overlay-content">
+      <div id="overlay-sidebar">
+        <div id="overlay-title">Photo Title Placeholder</div>
+        <div id="overlay-navigation" style="display: flex; gap: 12px; align-items: center; font-size: 12px; color: #555; cursor: pointer;">
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <span id="prev-label">Previous</span>
+            <button id="prev-btn" aria-label="Previous photo">&larr;</button>
+          </div>
+          <div style="display: flex; align-items: center; gap: 4px;">
+            <button id="next-btn" aria-label="Next photo">&rarr;</button>
+            <span id="next-label">Next</span>
+          </div>
         </div>
-        <div id="overlay-image-container">
-          <button id="overlay-close-btn" aria-label="Close viewer">&times;</button>
-          <div id="rephoto-wrap">
-            <img id="historic-image" src="" alt="Historic" />
-            <img id="rephoto-image" src="" alt="Re-photograph" />
-          </div>
-          <!-- Zoom toolbar -->
-          <div id="zoom-controls" role="toolbar" aria-label="Image zoom controls">
-            <button id="zoom-out" aria-label="Zoom out">−</button>
-            <button id="zoom-in" aria-label="Zoom in">+</button>
-            <button id="zoom-reset" aria-label="Reset zoom">Reset</button>
-          </div>
+        <label for="dissolve-slider">Dissolve Between Historic and Rephoto</label>
+        <input type="range" id="dissolve-slider" min="0" max="100" value="0" />
+      </div>
+      <div id="overlay-image-container">
+        <button id="overlay-close-btn" aria-label="Close viewer">&times;</button>
+        <div id="rephoto-wrap">
+          <img id="historic-image" src="" alt="Historic" />
+          <img id="rephoto-image" src="" alt="Re-photograph" />
+        </div>
+        <!-- Zoom toolbar -->
+        <div id="zoom-controls" role="toolbar" aria-label="Image zoom controls">
+          <button id="zoom-out" aria-label="Zoom out">−</button>
+          <button id="zoom-in" aria-label="Zoom in">+</button>
+          <button id="zoom-reset" aria-label="Reset zoom">Reset</button>
         </div>
       </div>
     </div>
+  </div>
 
-    <!-- ============================
+  <!-- ============================
          Scripts
     ============================= -->
-    <script src="https://unpkg.com/maplibre-gl@^5.6.2/dist/maplibre-gl.js"></script>
-    <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
-    <script>
-      /* =====================================================
+  <script src="https://unpkg.com/maplibre-gl@^5.6.2/dist/maplibre-gl.js"></script>
+  <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
+  <script>
+    /* =====================================================
          DOM references
       ====================================================== */
-      const overlay = document.getElementById("fullscreen-overlay");
-      const container = document.getElementById("overlay-image-container");
-      const wrapper = document.getElementById("rephoto-wrap");
-      const historic = document.getElementById("historic-image");
-      const rephoto = document.getElementById("rephoto-image");
-      const dissolve = document.getElementById("dissolve-slider");
+    const overlay = document.getElementById("fullscreen-overlay");
+    const container = document.getElementById("overlay-image-container");
+    const wrapper = document.getElementById("rephoto-wrap");
+    const historic = document.getElementById("historic-image");
+    const rephoto = document.getElementById("rephoto-image");
+    const dissolve = document.getElementById("dissolve-slider");
 
-      const timeSlider = document.getElementById("time-slider-input");
-      const timeYear = document.getElementById("time-year");
-      const slider = document.getElementById("slider");
+    const timeSlider = document.getElementById("time-slider-input");
+    const timeYear = document.getElementById("time-year");
+    const slider = document.getElementById("slider");
 
-      const photoToggle = document.getElementById("photo-toggle");
-      const broadwayToggle = document.getElementById("broadway-toggle");
-      const subwayToggle = document.getElementById("subway-toggle");
-      const elevatedToggle = document.getElementById("elevated-toggle");
-      const indianTrailsToggle = document.getElementById("indian-trails-toggle");
-      const neighborhoodToggle = document.getElementById("neighborhood-toggle");
-      
-      // Zoom control refs
-      const zoomInBtn = document.getElementById("zoom-in");
-      const zoomOutBtn = document.getElementById("zoom-out");
-      const zoomResetBtn = document.getElementById("zoom-reset");
+    const photoToggle = document.getElementById("photo-toggle");
+    const broadwayToggle = document.getElementById("broadway-toggle");
+    const subwayToggle = document.getElementById("subway-toggle");
+    const elevatedToggle = document.getElementById("elevated-toggle");
+    const indianTrailsToggle = document.getElementById("indian-trails-toggle");
+    const neighborhoodToggle = document.getElementById("neighborhood-toggle");
 
-      /* =====================================================
-         Panzoom (single instance)
-         - Start contained to ensure first fit stays in bounds
-         - Release containment on user interaction
-      ====================================================== */
-      const pz = Panzoom(wrapper, { maxScale: 4, contain: "inside" });
-      let containReleased = false;
+    // Zoom control refs
+    const zoomInBtn = document.getElementById("zoom-in");
+    const zoomOutBtn = document.getElementById("zoom-out");
+    const zoomResetBtn = document.getElementById("zoom-reset");
 
-      const enforceContain = () => {
-        containReleased = false;
-        pz.setOptions({ contain: "inside" });
-      };
-      const releaseContain = () => {
-        if (containReleased) return;
-        containReleased = true;
-        pz.setOptions({ contain: false });
-      };
+    /* =====================================================
+       Panzoom (single instance)
+       - Start contained to ensure first fit stays in bounds
+       - Release containment on user interaction
+    ====================================================== */
+    const pz = Panzoom(wrapper, {
+      maxScale: 4,
+      contain: "inside"
+    });
+    let containReleased = false;
 
-      // Wheel zoom & drag start release the initial containment
-      wrapper.addEventListener(
-        "wheel",
-        (e) => {
-          e.preventDefault();
-          releaseContain();
-          pz.zoomWithWheel(e);
-        },
-        { passive: false }
-      );
-      wrapper.addEventListener("pointerdown", releaseContain);
-
-      // --- Zoom buttons ---
-      const MAX_SCALE = 4;   // keep in sync with Panzoom's maxScale
-      const MIN_SCALE = 1;   // we lock min to 1 so "fit" never gets smaller
-
-      function getCurrentScale() {
-        // Prefer Panzoom's API if available
-        if (typeof pz.getScale === "function") return pz.getScale();
-        // Fallback: read the current CSS transform matrix on the wrapper
-        const m = new DOMMatrixReadOnly(getComputedStyle(wrapper).transform);
-        return m.a || 1;
-      }
-
-      function clamp(val, min, max) { return Math.max(min, Math.min(max, val)); }
-
-      function zoomBy(factor) {
-        // Allow the user to move outside initial bounds once they start zooming
-        releaseContain();
-
-        const current = getCurrentScale();
-        const next = clamp(current * factor, MIN_SCALE, MAX_SCALE);
-
-        // Zoom toward the center of the container (feels natural)
-        const rect = container.getBoundingClientRect();
-        const point = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
-
-        if (typeof pz.zoomToPoint === "function") {
-          pz.zoomToPoint(next, point);
-        } else if (typeof pz.zoom === "function") {
-          // Fallback: simple zoom; Panzoom will keep current center
-          pz.zoom(next, { animate: true });
-        }
-      }
-
-      // Wire up buttons
-      zoomInBtn.addEventListener("click", () => zoomBy(1.25));
-      zoomOutBtn.addEventListener("click", () => zoomBy(1 / 1.25));
-      zoomResetBtn.addEventListener("click", () => { enforceContain(); resetToFit(); });
-
-      /* =====================================================
-         Map setup
-      ====================================================== */
-      const map = new maplibregl.Map({
-        container: "map",
-        style: "assets/styles/style.json",
-        center: [-73.96, 40.79],
-        zoom: 11,
+    const enforceContain = () => {
+      containReleased = false;
+      pz.setOptions({
+        contain: "inside"
       });
-      map.addControl(new maplibregl.NavigationControl(), "top-left");
+    };
+    const releaseContain = () => {
+      if (containReleased) return;
+      containReleased = true;
+      pz.setOptions({
+        contain: false
+      });
+    };
 
-      // Broadway history for filtering
-      let originalGeoJsonData = null;
-      // Photo features + current index
-      let photoFeatures = [];
-      let currentPhotoIndex = -1;
+    // Wheel zoom & drag start release the initial containment
+    wrapper.addEventListener(
+      "wheel",
+      (e) => {
+        e.preventDefault();
+        releaseContain();
+        pz.zoomWithWheel(e);
+      }, {
+        passive: false
+      }
+    );
+    wrapper.addEventListener("pointerdown", releaseContain);
 
-      /* =====================================================
-         Small utilities
-      ====================================================== */
-      const raf = () => new Promise((r) => requestAnimationFrame(r));
+    // --- Zoom buttons ---
+    const MAX_SCALE = 4; // keep in sync with Panzoom's maxScale
+    const MIN_SCALE = 1; // we lock min to 1 so "fit" never gets smaller
 
-      /**
-       * Load an SVG and register it as a MapLibre image using a canvas bitmap.
-       */
-      async function loadSVGAsImage(name, url) {
-        const response = await fetch(url);
-        const svgText = await response.text();
-        const img = new Image();
-        const svgBlob = new Blob([svgText], { type: "image/svg+xml" });
-        const urlObj = URL.createObjectURL(svgBlob);
+    function getCurrentScale() {
+      // Prefer Panzoom's API if available
+      if (typeof pz.getScale === "function") return pz.getScale();
+      // Fallback: read the current CSS transform matrix on the wrapper
+      const m = new DOMMatrixReadOnly(getComputedStyle(wrapper).transform);
+      return m.a || 1;
+    }
 
-        return new Promise((resolve, reject) => {
-          img.onload = async () => {
-            // Prefer square canvas; derive from viewBox if present.
-            const viewBoxMatch = svgText.match(/viewBox="([\d.\s]+)"/);
-            let size = 64;
-            if (viewBoxMatch) {
-              const [, , w, h] = viewBoxMatch[1].split(" ").map(Number);
-              size = Math.max(w, h) || 64;
-            }
-            const canvas = document.createElement("canvas");
-            canvas.width = canvas.height = size;
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, size, size);
-            const bitmap = await createImageBitmap(canvas);
-            if (!map.hasImage(name)) map.addImage(name, bitmap, { pixelRatio: 1 });
-            URL.revokeObjectURL(urlObj);
-            resolve();
-          };
-          img.onerror = reject;
-          img.src = urlObj;
+    function clamp(val, min, max) {
+      return Math.max(min, Math.min(max, val));
+    }
+
+    function zoomBy(factor) {
+      // Allow the user to move outside initial bounds once they start zooming
+      releaseContain();
+
+      const current = getCurrentScale();
+      const next = clamp(current * factor, MIN_SCALE, MAX_SCALE);
+
+      // Zoom toward the center of the container (feels natural)
+      const rect = container.getBoundingClientRect();
+      const point = {
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2
+      };
+
+      if (typeof pz.zoomToPoint === "function") {
+        pz.zoomToPoint(next, point);
+      } else if (typeof pz.zoom === "function") {
+        // Fallback: simple zoom; Panzoom will keep current center
+        pz.zoom(next, {
+          animate: true
         });
       }
+    }
 
-      /**
-       * Filter Broadway-history features by active year.
-       */
-      function filterByYear(year) {
-        if (!originalGeoJsonData)
-          return { type: "FeatureCollection", features: [] };
-        const features = originalGeoJsonData.features.filter((f) => {
-          const { syear, eyear } = f.properties;
-          return year >= syear && year <= eyear;
+    // Wire up buttons
+    zoomInBtn.addEventListener("click", () => zoomBy(1.25));
+    zoomOutBtn.addEventListener("click", () => zoomBy(1 / 1.25));
+    zoomResetBtn.addEventListener("click", () => {
+      enforceContain();
+      resetToFit();
+    });
+
+    /* =====================================================
+       Map setup
+    ====================================================== */
+    const map = new maplibregl.Map({
+      container: "map",
+      style: "assets/styles/style.json",
+      center: [-73.96, 40.79],
+      zoom: 11,
+    });
+    map.addControl(new maplibregl.NavigationControl(), "top-left");
+
+    // Broadway history for filtering
+    let originalGeoJsonData = null;
+    // Photo features + current index
+    let photoFeatures = [];
+    let currentPhotoIndex = -1;
+
+    /* =====================================================
+       Small utilities
+    ====================================================== */
+    const raf = () => new Promise((r) => requestAnimationFrame(r));
+
+    /**
+     * Load an SVG and register it as a MapLibre image using a canvas bitmap.
+     */
+    async function loadSVGAsImage(name, url) {
+      const response = await fetch(url);
+      const svgText = await response.text();
+      const img = new Image();
+      const svgBlob = new Blob([svgText], {
+        type: "image/svg+xml"
+      });
+      const urlObj = URL.createObjectURL(svgBlob);
+
+      return new Promise((resolve, reject) => {
+        img.onload = async () => {
+          // Prefer square canvas; derive from viewBox if present.
+          const viewBoxMatch = svgText.match(/viewBox="([\d.\s]+)"/);
+          let size = 64;
+          if (viewBoxMatch) {
+            const [, , w, h] = viewBoxMatch[1].split(" ").map(Number);
+            size = Math.max(w, h) || 64;
+          }
+          const canvas = document.createElement("canvas");
+          canvas.width = canvas.height = size;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(img, 0, 0, size, size);
+          const bitmap = await createImageBitmap(canvas);
+          if (!map.hasImage(name)) map.addImage(name, bitmap, {
+            pixelRatio: 1
+          });
+          URL.revokeObjectURL(urlObj);
+          resolve();
+        };
+        img.onerror = reject;
+        img.src = urlObj;
+      });
+    }
+
+    /**
+     * Filter Broadway-history features by active year.
+     */
+    function filterByYear(year) {
+      if (!originalGeoJsonData)
+        return {
+          type: "FeatureCollection",
+          features: []
+        };
+      const features = originalGeoJsonData.features.filter((f) => {
+        const {
+          syear,
+          eyear
+        } = f.properties;
+        return year >= syear && year <= eyear;
+      });
+      return {
+        type: "FeatureCollection",
+        features
+      };
+    }
+
+    /**
+     * Size the panzoom wrapper to the container’s inner (padded) content box.
+     * The wrapper is absolutely positioned with `inset: 12px`; this function
+     * keeps its CSS-driven sizing in sync if container padding changes or when
+     * we need explicit width/height during measurements.
+     */
+    function sizeWrapperToContainerBox() {
+      const rect = container.getBoundingClientRect();
+      // Subtract the visual inset (12px on each side) to match CSS
+      const inset = 12 * 2;
+      const w = Math.max(0, rect.width - inset);
+      const h = Math.max(0, rect.height - inset);
+      wrapper.style.width = w + "px";
+      wrapper.style.height = h + "px";
+    }
+
+    /**
+     * Reset view to scale=1 and x/y=0 using Panzoom's public API.
+     * Also lock the minimum so the user can't zoom out smaller than fit.
+     */
+    function resetToFit() {
+      pz.setOptions({
+        minScale: 1
+      });
+      if (typeof pz.reset === "function") {
+        pz.reset({
+          animate: false
         });
-        return { type: "FeatureCollection", features };
+      } else {
+        // Fallback for older builds: manually set zoom and pan
+        if (typeof pz.zoom === "function") pz.zoom(1, {
+          animate: false
+        });
+        if (typeof pz.pan === "function") pz.pan(0, 0, {
+          animate: false
+        });
       }
+    }
 
-      /**
-       * Size the panzoom wrapper to the container’s inner (padded) content box.
-       * The wrapper is absolutely positioned with `inset: 12px`; this function
-       * keeps its CSS-driven sizing in sync if container padding changes or when
-       * we need explicit width/height during measurements.
-       */
-      function sizeWrapperToContainerBox() {
-        const rect = container.getBoundingClientRect();
-        // Subtract the visual inset (12px on each side) to match CSS
-        const inset = 12 * 2;
-        const w = Math.max(0, rect.width - inset);
-        const h = Math.max(0, rect.height - inset);
-        wrapper.style.width = w + "px";
-        wrapper.style.height = h + "px";
+    /**
+     * Optional: nudge the image to ensure its natural bounds are centered
+     * after fonts/layout settle. Left as a no-op but preserved for future
+     * fine-tuning. Safe to call repeatedly.
+     */
+    function nudgeToImageRect() {
+      // Intentionally empty. Placeholder for future fit heuristics.
+    }
+
+    // Convenience: do a full recenter sequence now
+    function centerNow() {
+      sizeWrapperToContainerBox();
+      resetToFit();
+    }
+
+    /**
+     * Open overlay and perform a stable sequence of fit + nudges.
+     * We allow layout to settle (scrollbars/fonts) before measuring.
+     */
+    async function openOverlayStable() {
+      overlay.style.display = "flex";
+      // Removing page scrollbars can change viewport height; wait for layout to settle
+      document.documentElement.style.overflow = "hidden";
+      overlay.getBoundingClientRect(); // force style & layout flush
+      await raf();
+      await raf(); // 2 frames => stable measurements
+    }
+
+    async function waitImageReady(img) {
+      if (img.decode) {
+        try {
+          await img.decode();
+        } catch {}
+      } else if (!img.complete) {
+        await new Promise((res) => img.addEventListener("load", res, {
+          once: true
+        }));
       }
+      await raf(); // ensure final painted size is measurable
+    }
 
-      /**
-       * Reset view to scale=1 and x/y=0 using Panzoom's public API.
-       * Also lock the minimum so the user can't zoom out smaller than fit.
-       */
-      function resetToFit() {
-        pz.setOptions({ minScale: 1 });
-        if (typeof pz.reset === "function") {
-          pz.reset({ animate: false });
-        } else {
-          // Fallback for older builds: manually set zoom and pan
-          if (typeof pz.zoom === "function") pz.zoom(1, { animate: false });
-          if (typeof pz.pan === "function") pz.pan(0, 0, { animate: false });
+    /**
+     * Create a styled popup DOM node with optional clickable thumbnail.
+     */
+    function buildPhotoPopupDom({
+      thumbUrl,
+      fullUrl,
+      title,
+      onThumbClick
+    }) {
+      const popupContainer = document.createElement("div");
+      Object.assign(popupContainer.style, {
+        maxWidth: "300px",
+        fontFamily: "'Fraunces', serif",
+        textAlign: "left",
+        lineHeight: "1.3",
+        backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--bg") || "#f9f7f1",
+        padding: "8px",
+        borderRadius: "6px",
+        boxShadow: "2px 2px 6px rgba(0,0,0,0.1)",
+      });
+
+      const img = new Image();
+      img.src = thumbUrl;
+      Object.assign(img.style, {
+        width: "100%",
+        height: "auto",
+        borderRadius: "4px",
+        cursor: fullUrl ? "pointer" : "default",
+      });
+
+      img.onload = () => {
+        popupContainer.appendChild(img);
+        if (fullUrl && typeof onThumbClick === "function") {
+          img.addEventListener("click", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onThumbClick();
+          });
         }
+
+        const titleDiv = document.createElement("div");
+        Object.assign(titleDiv.style, {
+          marginTop: "4px",
+          fontSize: "12px",
+          color: "#333",
+          wordWrap: "break-word",
+          overflowWrap: "break-word",
+        });
+        titleDiv.textContent = '"' + title + '"' || "";
+        popupContainer.appendChild(titleDiv);
+      };
+
+      return popupContainer;
+    }
+
+    /**
+     * Zoom the map to the current photo and show its popup (after viewer close).
+     */
+    function zoomMapToCurrentAndShowPopup() {
+      const feature = photoFeatures[currentPhotoIndex];
+      if (!feature) return;
+
+      map.easeTo({
+        center: feature.geometry.coordinates,
+        duration: 800,
+        zoom: 14
+      });
+
+      const thumbUrl = feature.properties.thumbs || "";
+      const fullUrl = feature.properties.full || "";
+      const title = feature.properties.title || "";
+
+      const popupDom = buildPhotoPopupDom({
+        thumbUrl,
+        fullUrl,
+        title,
+        onThumbClick: () => {
+          if (window.currentPopup) {
+            window.currentPopup.remove();
+            window.currentPopup = null;
+          }
+          updateOverlayByIndex(currentPhotoIndex);
+        },
+      });
+
+      const popup = new maplibregl.Popup({
+          offset: 15,
+          closeOnClick: true
+        })
+        .setLngLat(feature.geometry.coordinates)
+        .setDOMContent(popupDom)
+        .addTo(map);
+      window.currentPopup = popup;
+    }
+
+    /**
+     * Load a photo by index and show overlay with robust recentering.
+     */
+    async function updateOverlayByIndex(index) {
+      if (index < 0 || index >= photoFeatures.length) return;
+
+      const feature = photoFeatures[index];
+      currentPhotoIndex = index;
+
+      // Reset pan/zoom and containment state
+      pz.reset();
+      containReleased = false;
+      enforceContain();
+
+      // Update images + title; guard for missing URL
+      const fullUrl = feature.properties.full || "";
+      if (!fullUrl) return; // don’t open empty overlay
+      const title = feature.properties.title || "";
+      historic.src = fullUrl;
+      rephoto.src = "img/rephotos/" + fullUrl.split("/").pop();
+      document.getElementById("overlay-title").textContent = title;
+      // Add double quotes to title if not already present
+      if (!title.startsWith('"') && !title.endsWith('"')) {
+        document.getElementById("overlay-title").textContent = `"${title}"`;
       }
 
-      /**
-       * Optional: nudge the image to ensure its natural bounds are centered
-       * after fonts/layout settle. Left as a no-op but preserved for future
-       * fine-tuning. Safe to call repeatedly.
-       */
-      function nudgeToImageRect() {
-        // Intentionally empty. Placeholder for future fit heuristics.
-      }
+      // Reset dissolve
+      dissolve.value = 0;
+      historic.style.opacity = 1;
+      rephoto.style.opacity = 0;
 
-      // Convenience: do a full recenter sequence now
-      function centerNow() {
-        sizeWrapperToContainerBox();
-        resetToFit();
-      }
+      // 1) Open overlay and let layout settle
+      await openOverlayStable();
 
-      /**
-       * Open overlay and perform a stable sequence of fit + nudges.
-       * We allow layout to settle (scrollbars/fonts) before measuring.
-       */
-      async function openOverlayStable() {
-        overlay.style.display = "flex";
-        // Removing page scrollbars can change viewport height; wait for layout to settle
-        document.documentElement.style.overflow = "hidden";
-        overlay.getBoundingClientRect(); // force style & layout flush
-        await raf();
-        await raf(); // 2 frames => stable measurements
-      }
+      // 2) Ensure the historic image has decoded/painted so its rect is accurate
+      await waitImageReady(historic);
 
-      async function waitImageReady(img) {
-        if (img.decode) {
-          try { await img.decode(); } catch {}
-        } else if (!img.complete) {
-          await new Promise((res) => img.addEventListener("load", res, { once: true }));
+      // 3) Match wrapper to container inner box then center + (optional) nudge
+      sizeWrapperToContainerBox();
+      resetToFit();
+      nudgeToImageRect();
+
+      // 4) One more frame for straggling layout (fonts, etc.)
+      await raf();
+      sizeWrapperToContainerBox();
+      resetToFit();
+      nudgeToImageRect();
+    }
+
+    /* =====================================================
+       Overlay UI listeners
+    ====================================================== */
+    // Crossfade the stacked images based on the dissolve slider
+    dissolve.addEventListener("input", (e) => {
+      const v = +e.target.value / 100;
+      rephoto.style.opacity = v;
+      historic.style.opacity = 1 - v;
+    });
+
+    // Close the overlay, restore page scroll, and re-open the map popup
+    document.getElementById("overlay-close-btn").addEventListener("click", () => {
+      overlay.style.display = "none";
+      document.documentElement.style.overflow = ""; // restore scroll
+      pz.reset();
+      containReleased = false;
+      zoomMapToCurrentAndShowPopup();
+    });
+
+    // Fit again on resize while overlay is visible (debounced to next frame)
+    let resizeRaf = 0;
+    window.addEventListener("resize", () => {
+      if (overlay.style.display === "none") return;
+      cancelAnimationFrame(resizeRaf);
+      resizeRaf = requestAnimationFrame(() => {
+        centerNow();
+        nudgeToImageRect();
+      });
+    });
+
+    // Prev/Next navigation in overlay
+    document.getElementById("prev-btn").addEventListener("click", () => {
+      if (currentPhotoIndex > 0) updateOverlayByIndex(currentPhotoIndex - 1);
+    });
+    document.getElementById("next-btn").addEventListener("click", () => {
+      if (currentPhotoIndex < photoFeatures.length - 1)
+        updateOverlayByIndex(currentPhotoIndex + 1);
+    });
+    document.getElementById("prev-label").addEventListener("click", () => {
+      document.getElementById("prev-btn").click();
+    });
+
+    document.getElementById("next-label").addEventListener("click", () => {
+      document.getElementById("next-btn").click();
+    });
+
+    /* =====================================================
+       Map content
+    ====================================================== */
+    map.on("load", async () => {
+      // When the photos source finishes, cache features for indexing
+      map.on("sourcedata", (e) => {
+        if (
+          e.sourceId === "photos" &&
+          e.isSourceLoaded &&
+          map.getSource("photos") &&
+          map.getSource("photos")._data
+        ) {
+          photoFeatures = map.getSource("photos")._data.features || [];
         }
-        await raf(); // ensure final painted size is measurable
+      });
+
+      // Panel defaults
+      timeSlider.value = 1776;
+      timeYear.textContent = "1776";
+      slider.value = 0;
+
+      /* -----------------------------
+         Base raster (Voyager)
+      ------------------------------*/
+      map.addSource("voyager", {
+        type: "raster",
+        tiles: [
+          "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
+        ],
+        tileSize: 256,
+      });
+      map.addLayer({
+          id: "voyager-raster-layer",
+          type: "raster",
+          source: "voyager",
+          paint: {
+            "raster-opacity": 0
+          }, // starts hidden; slider reveals it
+        },
+        "paper-fibers-layer"
+      );
+
+      /* -----------------------------
+         Broadway history: fetch & filter by year
+      ------------------------------*/
+      fetch("overlays/Broadway_History.geojson")
+        .then((r) => r.json())
+        .then((data) => {
+          originalGeoJsonData = data;
+          const filtered = filterByYear(+timeSlider.value);
+          map.addSource("broadway-history", {
+            type: "geojson",
+            data: filtered
+          });
+          map.addLayer({
+            id: "broadway-history-layer",
+            type: "line",
+            source: "broadway-history",
+            layout: {
+              visibility: "visible"
+            },
+            paint: {
+              "line-color": "#8B5E3C",
+              "line-width": 3,
+              "line-opacity": 1,
+            },
+          });
+        });
+
+      /* -----------------------------
+         Hover popup for lines/stations
+      ------------------------------*/
+      const hoverPopup = new maplibregl.Popup({
+        closeButton: false,
+        closeOnClick: false,
+        offset: 10,
+        className: "hover-tooltip",
+      });
+
+      /* -----------------------------
+         Neighborhoods
+      ------------------------------*/
+      map.addSource("neighborhoods", {
+        type: "geojson",
+        data: "overlays/neighborhoods.geojson"
+      });
+
+      // Make a line layer with no fill
+      map.addLayer({
+        id: "neighborhoods-layer",
+        type: "line",
+        source: "neighborhoods",
+        layout: {
+          visibility: "none"
+        },
+        // Make the lines #006399 with a width of 1, transitioning to #D8A903 and a width of 2 on hover
+        paint: {
+          "line-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            "#D8A903",
+            "#006399",
+          ],
+          "line-width": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            2,
+            0.5,
+          ],
+          "line-opacity": 1,
+        },
+      });
+
+      map.addLayer({
+        id: "neighborhoods-fill-layer",
+        type: "fill",
+        source: "neighborhoods",
+        layout: {
+          visibility: "none"
+        },
+        paint: {
+          "fill-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            "#D8A903", // hover fill
+            "#006399" // normal fill
+          ],
+          "fill-opacity": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            0.3,
+            0.0
+          ]
+        }
+      });
+
+      /* -----------------------------
+         Indian Trails
+      ------------------------------*/
+      map.addSource("indian-trails", {
+        type: "geojson",
+        data: "overlays/indian-trails.geojson"
+      });
+      map.addLayer({
+        id: "indian-trails-layer",
+        type: "line",
+        source: "indian-trails",
+        layout: {
+          visibility: "none"
+        },
+        paint: {
+          "line-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            "#D8A903",
+            "#003153",
+          ],
+          "line-width": 2,
+          "line-opacity": 0.7,
+          "line-dasharray": [2, 4],
+        },
+      });
+
+      /* -----------------------------
+         Elevated train
+      ------------------------------*/
+      map.addSource("elevated-train", {
+        type: "geojson",
+        data: "overlays/elevated-train.geojson"
+      });
+      map.addSource("elevated-stations", {
+        type: "geojson",
+        data: "overlays/elevated-stations.geojson"
+      });
+      map.addLayer({
+        id: "elevated-train-layer",
+        type: "line",
+        source: "elevated-train",
+        layout: {
+          visibility: "none"
+        },
+        paint: {
+          "line-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            "#D8A903",
+            "#A67B5B",
+          ],
+          "line-width": 2,
+        },
+      });
+      map.addLayer({
+        id: "elevated-stations-layer",
+        type: "circle",
+        source: "elevated-stations",
+        layout: {
+          visibility: "none"
+        },
+        paint: {
+          "circle-radius": 4,
+          "circle-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            "#D8A903",
+            "#4C6A72",
+          ],
+          "circle-stroke-color": "#f9f7f1", // was "var(--bg)"
+          "circle-stroke-width": 1,
+        },
+      });
+
+      /* -----------------------------
+         Subway
+      ------------------------------*/
+      map.addSource("subway-lines", {
+        type: "geojson",
+        data: "overlays/subway.geojson"
+      });
+      map.addSource("subway-stations", {
+        type: "geojson",
+        data: "overlays/subway-stations.geojson"
+      });
+      map.addLayer({
+        id: "subway-lines-layer",
+        type: "line",
+        source: "subway-lines",
+        layout: {
+          visibility: "none"
+        },
+        paint: {
+          "line-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            "#D8A903",
+            "#732E2E",
+          ],
+          "line-width": 2,
+        },
+      });
+      map.addLayer({
+        id: "subway-stations-layer",
+        type: "circle",
+        source: "subway-stations",
+        layout: {
+          visibility: "none"
+        },
+        paint: {
+          "circle-radius": 4,
+          "circle-color": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            "#D8A903",
+            "#8A9A5B",
+          ],
+          "circle-stroke-color": "#f9f7f1", // was "var(--bg)"
+          "circle-stroke-width": 1,
+        },
+      });
+
+      // Hover state keys for feature-state toggling
+      const hoverState = {
+        neighborhoods: null,
+        indianTrails: null,
+        elevatedTrain: null,
+        elevatedStations: null,
+        subwayLines: null,
+        subwayStations: null
+      };
+
+      function hoverKeyForLayer(layerId) {
+        if (layerId.includes("neighborhoods")) return "neighborhoods";
+        if (layerId.includes("indian-trails")) return "indianTrails";
+        if (layerId.includes("elevated-train")) return "elevatedTrain";
+        if (layerId.includes("elevated-stations")) return "elevatedStations";
+        if (layerId.includes("subway-lines")) return "subwayLines";
+        if (layerId.includes("subway-stations")) return "subwayStations";
+        return null;
       }
 
-      /**
-       * Create a styled popup DOM node with optional clickable thumbnail.
-       */
-      function buildPhotoPopupDom({ thumbUrl, fullUrl, title, onThumbClick }) {
-        const popupContainer = document.createElement("div");
-        Object.assign(popupContainer.style, {
-          maxWidth: "300px",
-          fontFamily: "'Fraunces', serif",
-          textAlign: "left",
-          lineHeight: "1.3",
-          backgroundColor: getComputedStyle(document.documentElement).getPropertyValue("--bg") || "#f9f7f1",
-          padding: "8px",
-          borderRadius: "6px",
-          boxShadow: "2px 2px 6px rgba(0,0,0,0.1)",
+      /** Generic hover interaction with feature-state + tooltip */
+      function addHover(layerId, sourceId, nameProp) {
+        const hoverPopup = new maplibregl.Popup({
+          closeButton: false,
+          closeOnClick: false
         });
 
-        const img = new Image();
-        img.src = thumbUrl;
-        Object.assign(img.style, {
-          width: "100%",
-          height: "auto",
-          borderRadius: "4px",
-          cursor: fullUrl ? "pointer" : "default",
-        });
+        map.on("mousemove", layerId, (e) => {
+          if (!e.features.length) return;
+          const f = e.features[0];
+          const key = hoverKeyForLayer(layerId);
+          if (!key) return;
 
-        img.onload = () => {
-          popupContainer.appendChild(img);
-          if (fullUrl && typeof onThumbClick === "function") {
-            img.addEventListener("click", (e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onThumbClick();
+          // Remove previous hover
+          if (hoverState[key] !== null) {
+            map.setFeatureState({
+              source: sourceId,
+              id: hoverState[key]
+            }, {
+              hover: false
             });
           }
 
-          const titleDiv = document.createElement("div");
-          Object.assign(titleDiv.style, {
-            marginTop: "4px",
-            fontSize: "12px",
-            color: "#333",
-            wordWrap: "break-word",
-            overflowWrap: "break-word",
-          });
-          titleDiv.textContent = '"' + title + '"' || "";
-          popupContainer.appendChild(titleDiv);
-        };
+          // Set new hover
+          if (f.id !== undefined) {
+            map.setFeatureState({
+              source: sourceId,
+              id: f.id
+            }, {
+              hover: true
+            });
+            hoverState[key] = f.id;
+          }
 
-        return popupContainer;
+          map.getCanvas().style.cursor = "pointer";
+
+          // Tooltip
+          const name = f.properties[nameProp] || "Unnamed";
+          hoverPopup
+            .setLngLat(e.lngLat)
+            .setHTML(`<div style="font-family:'Fraunces',serif;font-size:12px;">${name}</div>`)
+            .addTo(map);
+        });
+
+        map.on("mouseleave", layerId, () => {
+          map.getCanvas().style.cursor = "";
+          hoverPopup.remove();
+          const key = hoverKeyForLayer(layerId);
+          if (hoverState[key] !== null) {
+            map.setFeatureState({
+              source: sourceId,
+              id: hoverState[key]
+            }, {
+              hover: false
+            });
+            hoverState[key] = null;
+          }
+        });
       }
 
-      /**
-       * Zoom the map to the current photo and show its popup (after viewer close).
-       */
-      function zoomMapToCurrentAndShowPopup() {
-        const feature = photoFeatures[currentPhotoIndex];
-        if (!feature) return;
+      addHover("neighborhoods-fill-layer", "neighborhoods", "name");
+      addHover("indian-trails-layer", "indian-trails", "name");
+      addHover("elevated-train-layer", "elevated-train", "name");
+      addHover("elevated-stations-layer", "elevated-stations", "name");
+      addHover("subway-lines-layer", "subway-lines", "name");
+      addHover("subway-stations-layer", "subway-stations", "name");
 
-        map.easeTo({ center: feature.geometry.coordinates, duration: 800, zoom: 14 });
+      /* -----------------------------
+         Camera icons + photos layer
+      ------------------------------*/
+      await loadSVGAsImage("camera", "svg/camera.svg");
 
+      map.addSource("photos", {
+        type: "geojson",
+        data: "overlays/photos.geojson"
+      });
+
+      map.addLayer({
+        id: "photos-layer",
+        type: "symbol",
+        source: "photos",
+        layout: {
+          "icon-image": "camera",
+          "icon-size": ["interpolate", ["linear"],
+            ["zoom"], 10, 0.02, 15, 0.05
+          ],
+          "icon-allow-overlap": false,
+          "icon-anchor": "center",
+          "icon-rotate": ["+", ["get", "orientation"], 180],
+          "visibility": "visible",
+        },
+        paint: {
+          "icon-opacity": [
+            "case",
+            ["boolean", ["feature-state", "hover"], false],
+            0.5,
+            1,
+          ],
+        },
+      });
+
+      // Hover effect (fade icon)
+      let hoveredPhotoId = null;
+      map.on("mousemove", "photos-layer", (e) => {
+        const fs = map.queryRenderedFeatures(e.point, {
+          layers: ["photos-layer"]
+        });
+        if (!fs.length) {
+          if (hoveredPhotoId !== null) {
+            map.setFeatureState({
+              source: "photos",
+              id: hoveredPhotoId
+            }, {
+              hover: false
+            });
+            hoveredPhotoId = null;
+          }
+          map.getCanvas().style.cursor = "";
+          return;
+        }
+        const f = fs[0];
+        if (hoveredPhotoId !== f.id) {
+          if (hoveredPhotoId !== null)
+            map.setFeatureState({
+              source: "photos",
+              id: hoveredPhotoId
+            }, {
+              hover: false
+            });
+          hoveredPhotoId = f.id;
+          map.setFeatureState({
+            source: "photos",
+            id: hoveredPhotoId
+          }, {
+            hover: true
+          });
+        }
+        map.getCanvas().style.cursor = "pointer";
+      });
+      map.on("mouseleave", "photos-layer", () => {
+        if (hoveredPhotoId !== null) {
+          map.setFeatureState({
+            source: "photos",
+            id: hoveredPhotoId
+          }, {
+            hover: false
+          });
+          hoveredPhotoId = null;
+        }
+        map.getCanvas().style.cursor = "";
+      });
+
+      // Click photo icon → popup with thumbnail; click thumbnail → open overlay
+      map.on("click", "photos-layer", (e) => {
+        const feature = e.features[0];
         const thumbUrl = feature.properties.thumbs || "";
         const fullUrl = feature.properties.full || "";
         const title = feature.properties.title || "";
+
+        currentPhotoIndex = photoFeatures.findIndex((f) => f.id === feature.id);
+        if (window.currentPopup) window.currentPopup.remove();
 
         const popupDom = buildPhotoPopupDom({
           thumbUrl,
@@ -722,686 +1356,212 @@
               window.currentPopup.remove();
               window.currentPopup = null;
             }
-            updateOverlayByIndex(currentPhotoIndex);
+            // Give the map/popup DOM two frames to settle before we measure/open.
+            requestAnimationFrame(() => {
+              requestAnimationFrame(() => {
+                updateOverlayByIndex(currentPhotoIndex);
+              });
+            });
           },
         });
 
-        const popup = new maplibregl.Popup({ offset: 15, closeOnClick: true })
+        const popup = new maplibregl.Popup({
+            offset: 15,
+            closeOnClick: true
+          })
           .setLngLat(feature.geometry.coordinates)
           .setDOMContent(popupDom)
           .addTo(map);
         window.currentPopup = popup;
-      }
-
-      /**
-       * Load a photo by index and show overlay with robust recentering.
-       */
-      async function updateOverlayByIndex(index) {
-        if (index < 0 || index >= photoFeatures.length) return;
-
-        const feature = photoFeatures[index];
-        currentPhotoIndex = index;
-
-        // Reset pan/zoom and containment state
-        pz.reset();
-        containReleased = false;
-        enforceContain();
-
-        // Update images + title; guard for missing URL
-        const fullUrl = feature.properties.full || "";
-        if (!fullUrl) return; // don’t open empty overlay
-        const title = feature.properties.title || "";
-        historic.src = fullUrl;
-        rephoto.src = "img/rephotos/" + fullUrl.split("/").pop();
-        document.getElementById("overlay-title").textContent = title;
-        // Add double quotes to title if not already present
-        if (!title.startsWith('"') && !title.endsWith('"')) {
-          document.getElementById("overlay-title").textContent = `"${title}"`;
-        }
-
-        // Reset dissolve
-        dissolve.value = 0;
-        historic.style.opacity = 1;
-        rephoto.style.opacity = 0;
-
-        // 1) Open overlay and let layout settle
-        await openOverlayStable();
-
-        // 2) Ensure the historic image has decoded/painted so its rect is accurate
-        await waitImageReady(historic);
-
-        // 3) Match wrapper to container inner box then center + (optional) nudge
-        sizeWrapperToContainerBox();
-        resetToFit();
-        nudgeToImageRect();
-
-        // 4) One more frame for straggling layout (fonts, etc.)
-        await raf();
-        sizeWrapperToContainerBox();
-        resetToFit();
-        nudgeToImageRect();
-      }
-
-      /* =====================================================
-         Overlay UI listeners
-      ====================================================== */
-      // Crossfade the stacked images based on the dissolve slider
-      dissolve.addEventListener("input", (e) => {
-        const v = +e.target.value / 100;
-        rephoto.style.opacity = v;
-        historic.style.opacity = 1 - v;
       });
 
-      // Close the overlay, restore page scroll, and re-open the map popup
-      document.getElementById("overlay-close-btn").addEventListener("click", () => {
-        overlay.style.display = "none";
-        document.documentElement.style.overflow = ""; // restore scroll
-        pz.reset();
-        containReleased = false;
-        zoomMapToCurrentAndShowPopup();
-      });
-
-      // Fit again on resize while overlay is visible (debounced to next frame)
-      let resizeRaf = 0;
-      window.addEventListener("resize", () => {
-        if (overlay.style.display === "none") return;
-        cancelAnimationFrame(resizeRaf);
-        resizeRaf = requestAnimationFrame(() => {
-          centerNow();
-          nudgeToImageRect();
+      /* -----------------------------
+         Layer toggles
+      ------------------------------*/
+      const setVisibility = (ids, visible) => {
+        const vis = visible ? "visible" : "none";
+        ids.forEach((id) => {
+          if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
         });
-      });
+      };
+      // Initial
+      setVisibility(["photos-layer"], photoToggle.checked);
+      setVisibility(["broadway-layer", "broadway-history-layer"], broadwayToggle.checked);
+      setVisibility(["subway-lines-layer", "subway-stations-layer"], subwayToggle.checked);
+      setVisibility(["elevated-train-layer", "elevated-stations-layer"], elevatedToggle.checked);
+      setVisibility(["indian-trails-layer"], indianTrailsToggle.checked);
+      setVisibility(["neighborhoods-fill-layer", "neighborhoods-layer"], neighborhoodToggle.checked);
+      // Change listeners
+      photoToggle.addEventListener("change", () => {
+        const isVisible = photoToggle.checked;
+        setVisibility(["photos-layer"], isVisible);
 
-      // Prev/Next navigation in overlay
-      document.getElementById("prev-btn").addEventListener("click", () => {
-        if (currentPhotoIndex > 0) updateOverlayByIndex(currentPhotoIndex - 1);
-      });
-      document.getElementById("next-btn").addEventListener("click", () => {
-        if (currentPhotoIndex < photoFeatures.length - 1)
-          updateOverlayByIndex(currentPhotoIndex + 1);
-      });
-      document.getElementById("prev-label").addEventListener("click", () => {
-        document.getElementById("prev-btn").click();
-      });
+        const detailsEl = document.getElementById("photos-details");
 
-      document.getElementById("next-label").addEventListener("click", () => {
-        document.getElementById("next-btn").click();
-      });
+        if (!isVisible) {
+          map.setFilter("photos-layer", null);
+          detailsEl.open = false;
+          detailsEl.classList.add("no-toggle"); // Just disables dropdown behavior
 
-      /* =====================================================
-         Map content
-      ====================================================== */
-      map.on("load", async () => {
-        // When the photos source finishes, cache features for indexing
-        map.on("sourcedata", (e) => {
-          if (
-            e.sourceId === "photos" &&
-            e.isSourceLoaded &&
-            map.getSource("photos") &&
-            map.getSource("photos")._data
-          ) {
-            photoFeatures = map.getSource("photos")._data.features || [];
-          }
-        });
-
-        // Panel defaults
-        timeSlider.value = 1776;
-        timeYear.textContent = "1776";
-        slider.value = 0;
-
-        /* -----------------------------
-           Base raster (Voyager)
-        ------------------------------*/
-        map.addSource("voyager", {
-          type: "raster",
-          tiles: [
-            "https://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}.png",
-          ],
-          tileSize: 256,
-        });
-        map.addLayer(
-          {
-            id: "voyager-raster-layer",
-            type: "raster",
-            source: "voyager",
-            paint: { "raster-opacity": 0 }, // starts hidden; slider reveals it
-          },
-          "paper-fibers-layer"
-        );
-
-        /* -----------------------------
-           Broadway history: fetch & filter by year
-        ------------------------------*/
-        fetch("overlays/Broadway_History.geojson")
-          .then((r) => r.json())
-          .then((data) => {
-            originalGeoJsonData = data;
-            const filtered = filterByYear(+timeSlider.value);
-            map.addSource("broadway-history", { type: "geojson", data: filtered });
-            map.addLayer({
-              id: "broadway-history-layer",
-              type: "line",
-              source: "broadway-history",
-              layout: { visibility: "visible" },
-              paint: {
-                "line-color": "#8B5E3C",
-                "line-width": 3,
-                "line-opacity": 1,
-              },
-            });
+          // Uncheck all tag filters
+          photoTagFields.forEach(tag => {
+            const safeId = tag.replace(/[^\w-]/g, "_");
+            const checkbox = document.getElementById(`tag-${safeId}`);
+            if (checkbox) checkbox.checked = false;
           });
+        } else {
+          detailsEl.classList.remove("no-toggle");
+          updatePhotoLayerFilter();
+        }
+      });
+      neighborhoodToggle.addEventListener("change", () =>
+        setVisibility(["neighborhoods-fill-layer", "neighborhoods-layer"], neighborhoodToggle.checked)
+      );
+      indianTrailsToggle.addEventListener("change", () =>
+        setVisibility(["indian-trails-layer"], indianTrailsToggle.checked)
+      );
+      broadwayToggle.addEventListener("change", () =>
+        setVisibility(["broadway-layer", "broadway-history-layer"], broadwayToggle.checked)
+      );
+      subwayToggle.addEventListener("change", () =>
+        setVisibility(["subway-lines-layer", "subway-stations-layer"], subwayToggle.checked)
+      );
+      elevatedToggle.addEventListener("change", () =>
+        setVisibility(["elevated-train-layer", "elevated-stations-layer"], elevatedToggle.checked)
+      );
 
-        /* -----------------------------
-           Hover popup for lines/stations
-        ------------------------------*/
-        const hoverPopup = new maplibregl.Popup({
-          closeButton: false,
-          closeOnClick: false,
-          offset: 10,
-          className: "hover-tooltip",
-        });
-
-        /* -----------------------------
-           Neighborhoods
-        ------------------------------*/
-        map.addSource("neighborhoods", { type: "geojson", data: "overlays/neighborhoods.geojson" });
-
-        // Make a line layer with no fill
-        map.addLayer({
-          id: "neighborhoods-layer",
-          type: "line",
-          source: "neighborhoods",
-          layout: { visibility: "none" },
-          // Make the lines #006399 with a width of 1, transitioning to #D8A903 and a width of 2 on hover
-          paint: {
-            "line-color": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              "#D8A903",
-              "#006399",
-            ],
-            "line-width": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              2,
-              0.5,
-            ],
-            "line-opacity": 1,
-          },
-        });
-
-        map.addLayer({
-          id: "neighborhoods-fill-layer",
-          type: "fill",
-          source: "neighborhoods",
-          layout: { visibility: "none" },
-          paint: {
-            "fill-color": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              "#D8A903", // hover fill
-              "#006399"  // normal fill
-            ],
-            "fill-opacity": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              0.3,
-              0.0
-            ]
+      /* -----------------------------
+         Opacity slider: fade historic vs contemporary (Voyager)
+         - Multiplies stored opacities for layers from the 'broadway' source and
+           the paper-fiber layer in your style; reveals the Voyager raster inversely.
+         - All checks guard against missing/renamed layers.
+      ------------------------------*/
+      const originalOpacities = {};
+      map.once("idle", () => {
+        const style = map.getStyle();
+        if (!style || !style.layers) return;
+        style.layers.forEach((layer) => {
+          const {
+            id,
+            source,
+            type
+          } = layer;
+          // Capture opacities of your custom style layers (source === 'broadway')
+          if (source === "broadway") {
+            const props = {};
+            if (type === "fill") props["fill-opacity"] = map.getPaintProperty(id, "fill-opacity") ?? 1;
+            if (type === "line") props["line-opacity"] = map.getPaintProperty(id, "line-opacity") ?? 1;
+            if (type === "symbol") {
+              props["text-opacity"] = map.getPaintProperty(id, "text-opacity") ?? 1;
+              props["icon-opacity"] = map.getPaintProperty(id, "icon-opacity") ?? 1;
+            }
+            if (Object.keys(props).length) originalOpacities[id] = props;
           }
-        });        
-
-        /* -----------------------------
-           Indian Trails
-        ------------------------------*/
-        map.addSource("indian-trails", { type: "geojson", data: "overlays/indian-trails.geojson" });
-        map.addLayer({
-          id: "indian-trails-layer",
-          type: "line",
-          source: "indian-trails",
-          layout: { visibility: "none" },
-          paint: {
-            "line-color": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              "#D8A903",
-              "#003153",
-            ],
-            "line-width": 2,
-            "line-opacity": 0.7,
-            "line-dasharray": [2, 4],
-          },
+          // Paper texture layer (from your map style)
+          if (id === "paper-fibers-layer" && type === "raster") {
+            originalOpacities[id] = {
+              "raster-opacity": map.getPaintProperty(id, "raster-opacity") ?? 1,
+            };
+          }
         });
 
-        /* -----------------------------
-           Elevated train
-        ------------------------------*/
-        map.addSource("elevated-train", { type: "geojson", data: "overlays/elevated-train.geojson" });
-        map.addSource("elevated-stations", { type: "geojson", data: "overlays/elevated-stations.geojson" });
-        map.addLayer({
-          id: "elevated-train-layer",
-          type: "line",
-          source: "elevated-train",
-          layout: { visibility: "none" },
-          paint: {
-            "line-color": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              "#D8A903",
-              "#A67B5B",
-            ],
-            "line-width": 2,
-          },
-        });
-        map.addLayer({
-          id: "elevated-stations-layer",
-          type: "circle",
-          source: "elevated-stations",
-          layout: { visibility: "none" },
-          paint: {
-            "circle-radius": 4,
-            "circle-color": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              "#D8A903",
-              "#4C6A72",
-            ],
-            "circle-stroke-color": "#f9f7f1",   // was "var(--bg)"
-            "circle-stroke-width": 1,
-          },
-        });
-
-        /* -----------------------------
-           Subway
-        ------------------------------*/
-        map.addSource("subway-lines", { type: "geojson", data: "overlays/subway.geojson" });
-        map.addSource("subway-stations", { type: "geojson", data: "overlays/subway-stations.geojson" });
-        map.addLayer({
-          id: "subway-lines-layer",
-          type: "line",
-          source: "subway-lines",
-          layout: { visibility: "none" },
-          paint: {
-            "line-color": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              "#D8A903",
-              "#732E2E",
-            ],
-            "line-width": 2,
-          },
-        });
-        map.addLayer({
-          id: "subway-stations-layer",
-          type: "circle",
-          source: "subway-stations",
-          layout: { visibility: "none" },
-          paint: {
-            "circle-radius": 4,
-            "circle-color": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              "#D8A903",
-              "#8A9A5B",
-            ],
-            "circle-stroke-color": "#f9f7f1",   // was "var(--bg)"
-            "circle-stroke-width": 1,
-          },
-        });
-
-        // Hover state keys for feature-state toggling
-        const hoverState = {
-          neighborhoods: null,
-          indianTrails: null,
-          elevatedTrain: null,
-          elevatedStations: null,
-          subwayLines: null,
-          subwayStations: null
+        const applyOpacity = () => {
+          const multiplier = 1 - +slider.value / 100;
+          Object.entries(originalOpacities).forEach(([layerId, props]) => {
+            if (layerId === "voyager-raster-layer") return; // never scale the voyager layer here
+            Object.entries(props).forEach(([prop, val]) =>
+              map.setPaintProperty(layerId, prop, val * multiplier)
+            );
+          });
+          if (map.getLayer("voyager-raster-layer"))
+            map.setPaintProperty("voyager-raster-layer", "raster-opacity", 1 - multiplier);
         };
 
-        function hoverKeyForLayer(layerId) {
-          if (layerId.includes("neighborhoods")) return "neighborhoods";
-          if (layerId.includes("indian-trails")) return "indianTrails";
-          if (layerId.includes("elevated-train")) return "elevatedTrain";
-          if (layerId.includes("elevated-stations")) return "elevatedStations";
-          if (layerId.includes("subway-lines")) return "subwayLines";
-          if (layerId.includes("subway-stations")) return "subwayStations";
-          return null;
-        }
-
-        /** Generic hover interaction with feature-state + tooltip */
-        function addHover(layerId, sourceId, nameProp) {
-          const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
-
-          map.on("mousemove", layerId, (e) => {
-            if (!e.features.length) return;
-            const f = e.features[0];
-            const key = hoverKeyForLayer(layerId);
-            if (!key) return;
-
-            // Remove previous hover
-            if (hoverState[key] !== null) {
-              map.setFeatureState(
-                { source: sourceId, id: hoverState[key] },
-                { hover: false }
-              );
-            }
-
-            // Set new hover
-            if (f.id !== undefined) {
-              map.setFeatureState(
-                { source: sourceId, id: f.id },
-                { hover: true }
-              );
-              hoverState[key] = f.id;
-            }
-
-            map.getCanvas().style.cursor = "pointer";
-
-            // Tooltip
-            const name = f.properties[nameProp] || "Unnamed";
-            hoverPopup
-              .setLngLat(e.lngLat)
-              .setHTML(`<div style="font-family:'Fraunces',serif;font-size:12px;">${name}</div>`)
-              .addTo(map);
-          });
-
-          map.on("mouseleave", layerId, () => {
-            map.getCanvas().style.cursor = "";
-            hoverPopup.remove();
-            const key = hoverKeyForLayer(layerId);
-            if (hoverState[key] !== null) {
-              map.setFeatureState(
-                { source: sourceId, id: hoverState[key] },
-                { hover: false }
-              );
-              hoverState[key] = null;
-            }
-          });
-        }
-
-        addHover("neighborhoods-fill-layer", "neighborhoods", "name");
-        addHover("indian-trails-layer", "indian-trails", "name");
-        addHover("elevated-train-layer", "elevated-train", "name");
-        addHover("elevated-stations-layer", "elevated-stations", "name");
-        addHover("subway-lines-layer", "subway-lines", "name");
-        addHover("subway-stations-layer", "subway-stations", "name");
-
-        /* -----------------------------
-           Camera icons + photos layer
-        ------------------------------*/
-        await loadSVGAsImage("camera", "svg/camera.svg");
-
-        map.addSource("photos", { type: "geojson", data: "overlays/photos.geojson" });
-
-        map.addLayer({
-          id: "photos-layer",
-          type: "symbol",
-          source: "photos",
-          layout: {
-            "icon-image": "camera",
-            "icon-size": ["interpolate", ["linear"], ["zoom"], 10, 0.02, 15, 0.05],
-            "icon-allow-overlap": false,
-            "icon-anchor": "center",
-            "icon-rotate": ["+", ["get", "orientation"], 180],
-            "visibility": "visible",
-          },
-          paint: {
-            "icon-opacity": [
-              "case",
-              ["boolean", ["feature-state", "hover"], false],
-              0.5,
-              1,
-            ],
-          },
-        });
-
-        // Hover effect (fade icon)
-        let hoveredPhotoId = null;
-        map.on("mousemove", "photos-layer", (e) => {
-          const fs = map.queryRenderedFeatures(e.point, { layers: ["photos-layer"] });
-          if (!fs.length) {
-            if (hoveredPhotoId !== null) {
-              map.setFeatureState({ source: "photos", id: hoveredPhotoId }, { hover: false });
-              hoveredPhotoId = null;
-            }
-            map.getCanvas().style.cursor = "";
-            return;
-          }
-          const f = fs[0];
-          if (hoveredPhotoId !== f.id) {
-            if (hoveredPhotoId !== null)
-              map.setFeatureState({ source: "photos", id: hoveredPhotoId }, { hover: false });
-            hoveredPhotoId = f.id;
-            map.setFeatureState({ source: "photos", id: hoveredPhotoId }, { hover: true });
-          }
-          map.getCanvas().style.cursor = "pointer";
-        });
-        map.on("mouseleave", "photos-layer", () => {
-          if (hoveredPhotoId !== null) {
-            map.setFeatureState({ source: "photos", id: hoveredPhotoId }, { hover: false });
-            hoveredPhotoId = null;
-          }
-          map.getCanvas().style.cursor = "";
-        });
-
-        // Click photo icon → popup with thumbnail; click thumbnail → open overlay
-        map.on("click", "photos-layer", (e) => {
-          const feature = e.features[0];
-          const thumbUrl = feature.properties.thumbs || "";
-          const fullUrl = feature.properties.full || "";
-          const title = feature.properties.title || "";
-
-          currentPhotoIndex = photoFeatures.findIndex((f) => f.id === feature.id);
-          if (window.currentPopup) window.currentPopup.remove();
-
-          const popupDom = buildPhotoPopupDom({
-            thumbUrl,
-            fullUrl,
-            title,
-            onThumbClick: () => {
-              if (window.currentPopup) {
-                window.currentPopup.remove();
-                window.currentPopup = null;
-              }
-              // Give the map/popup DOM two frames to settle before we measure/open.
-              requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                  updateOverlayByIndex(currentPhotoIndex);
-                });
-              });
-            },
-          });
-
-          const popup = new maplibregl.Popup({ offset: 15, closeOnClick: true })
-            .setLngLat(feature.geometry.coordinates)
-            .setDOMContent(popupDom)
-            .addTo(map);
-          window.currentPopup = popup;
-        });
-
-        /* -----------------------------
-           Layer toggles
-        ------------------------------*/
-        const setVisibility = (ids, visible) => {
-          const vis = visible ? "visible" : "none";
-          ids.forEach((id) => {
-            if (map.getLayer(id)) map.setLayoutProperty(id, "visibility", vis);
-          });
-        };
-        // Initial
-        setVisibility(["photos-layer"], photoToggle.checked);
-        setVisibility(["broadway-layer", "broadway-history-layer"], broadwayToggle.checked);
-        setVisibility(["subway-lines-layer", "subway-stations-layer"], subwayToggle.checked);
-        setVisibility(["elevated-train-layer", "elevated-stations-layer"], elevatedToggle.checked);
-        setVisibility(["indian-trails-layer"], indianTrailsToggle.checked);
-        setVisibility(["neighborhoods-fill-layer", "neighborhoods-layer"], neighborhoodToggle.checked);
-        // Change listeners
-        photoToggle.addEventListener("change", () => {
-          const isVisible = photoToggle.checked;
-          setVisibility(["photos-layer"], isVisible);
-
-          const detailsEl = document.getElementById("photos-details");
-
-          if (!isVisible) {
-            map.setFilter("photos-layer", null);
-            detailsEl.open = false;
-            detailsEl.classList.add("no-toggle"); // Just disables dropdown behavior
-
-            // Uncheck all tag filters
-            photoTagFields.forEach(tag => {
-              const safeId = tag.replace(/[^\w-]/g, "_");
-              const checkbox = document.getElementById(`tag-${safeId}`);
-              if (checkbox) checkbox.checked = false;
-            });
-          } else {
-            detailsEl.classList.remove("no-toggle");
-            updatePhotoLayerFilter();
-          }
-        });
-        neighborhoodToggle.addEventListener("change", () =>
-          setVisibility(["neighborhoods-fill-layer", "neighborhoods-layer"], neighborhoodToggle.checked)
-        );
-        indianTrailsToggle.addEventListener("change", () =>
-          setVisibility(["indian-trails-layer"], indianTrailsToggle.checked)
-        );
-        broadwayToggle.addEventListener("change", () =>
-          setVisibility(["broadway-layer", "broadway-history-layer"], broadwayToggle.checked)
-        );
-        subwayToggle.addEventListener("change", () =>
-          setVisibility(["subway-lines-layer", "subway-stations-layer"], subwayToggle.checked)
-        );
-        elevatedToggle.addEventListener("change", () =>
-          setVisibility(["elevated-train-layer", "elevated-stations-layer"], elevatedToggle.checked)
-        );
-
-        /* -----------------------------
-           Opacity slider: fade historic vs contemporary (Voyager)
-           - Multiplies stored opacities for layers from the 'broadway' source and
-             the paper-fiber layer in your style; reveals the Voyager raster inversely.
-           - All checks guard against missing/renamed layers.
-        ------------------------------*/
-        const originalOpacities = {};
-        map.once("idle", () => {
-          const style = map.getStyle();
-          if (!style || !style.layers) return;
-          style.layers.forEach((layer) => {
-            const { id, source, type } = layer;
-            // Capture opacities of your custom style layers (source === 'broadway')
-            if (source === "broadway") {
-              const props = {};
-              if (type === "fill") props["fill-opacity"] = map.getPaintProperty(id, "fill-opacity") ?? 1;
-              if (type === "line") props["line-opacity"] = map.getPaintProperty(id, "line-opacity") ?? 1;
-              if (type === "symbol") {
-                props["text-opacity"] = map.getPaintProperty(id, "text-opacity") ?? 1;
-                props["icon-opacity"] = map.getPaintProperty(id, "icon-opacity") ?? 1;
-              }
-              if (Object.keys(props).length) originalOpacities[id] = props;
-            }
-            // Paper texture layer (from your map style)
-            if (id === "paper-fibers-layer" && type === "raster") {
-              originalOpacities[id] = {
-                "raster-opacity": map.getPaintProperty(id, "raster-opacity") ?? 1,
-              };
-            }
-          });
-
-          const applyOpacity = () => {
-            const multiplier = 1 - +slider.value / 100;
-            Object.entries(originalOpacities).forEach(([layerId, props]) => {
-              if (layerId === "voyager-raster-layer") return; // never scale the voyager layer here
-              Object.entries(props).forEach(([prop, val]) =>
-                map.setPaintProperty(layerId, prop, val * multiplier)
-              );
-            });
-            if (map.getLayer("voyager-raster-layer"))
-              map.setPaintProperty("voyager-raster-layer", "raster-opacity", 1 - multiplier);
-          };
-
-          applyOpacity();
-          slider.addEventListener("input", applyOpacity);
-        });
-
-        /* -----------------------------
-           Time slider: refilter Broadway history; auto-show if off
-        ------------------------------*/
-        timeSlider.addEventListener("input", () => {
-          const year = +timeSlider.value;
-          timeYear.textContent = String(year);
-          if (map.getSource("broadway-history"))
-            map.getSource("broadway-history").setData(filterByYear(year));
-          if (!broadwayToggle.checked) {
-            broadwayToggle.checked = true;
-            setVisibility(["broadway-layer", "broadway-history-layer"], true);
-          }
-        });
+        applyOpacity();
+        slider.addEventListener("input", applyOpacity);
       });
 
-      /* =====================================================
-         Photo tag filtering
-      ====================================================== */
+      /* -----------------------------
+         Time slider: refilter Broadway history; auto-show if off
+      ------------------------------*/
+      timeSlider.addEventListener("input", () => {
+        const year = +timeSlider.value;
+        timeYear.textContent = String(year);
+        if (map.getSource("broadway-history"))
+          map.getSource("broadway-history").setData(filterByYear(year));
+        if (!broadwayToggle.checked) {
+          broadwayToggle.checked = true;
+          setVisibility(["broadway-layer", "broadway-history-layer"], true);
+        }
+      });
+    });
 
-      const photoTagFields = [
-        "Signage",
-        "Street_Uses",
-        "Architectural_Heritage_&_Holdouts",
-        "Borders_&_Boundaries",
-        "Nature_in_the_City",
-        "Popular_Culture",
-        "Night/Illumination",
-        "Revolutionary_Traces",
-        "Squatter_Wars",
-        "Odology"
-      ];
+    /* =====================================================
+       Photo tag filtering
+    ====================================================== */
 
-      const tagContainer = document.getElementById("photo-tags-container");
+    const photoTagFields = [
+      "Signage",
+      "Street_Uses",
+      "Architectural_Heritage_&_Holdouts",
+      "Borders_&_Boundaries",
+      "Nature_in_the_City",
+      "Popular_Culture",
+      "Night/Illumination",
+      "Revolutionary_Traces",
+      "Squatter_Wars",
+      "Odology"
+    ];
+
+    const tagContainer = document.getElementById("photo-tags-container");
+
+    photoTagFields.forEach(tag => {
+      const safeId = tag.replace(/[^\w-]/g, "_"); // valid ID
+      const readableLabel = tag === "Squatter_Wars" ?
+        `"Squatter Wars"` // ← Double quotes around label only
+        :
+        tag.replace(/_/g, " ");
+
+      const checkbox = document.createElement("input");
+      checkbox.type = "checkbox";
+      checkbox.id = `tag-${safeId}`;
+      checkbox.dataset.tag = tag;
+
+      const label = document.createElement("label");
+      label.style.display = "block";
+      label.style.margin = "2px 0";
+      label.appendChild(checkbox);
+      label.append(` ${readableLabel}`);
+
+      tagContainer.appendChild(label);
+
+      checkbox.addEventListener("change", updatePhotoLayerFilter);
+    });
+
+    function updatePhotoLayerFilter() {
+      const selectedTags = [];
 
       photoTagFields.forEach(tag => {
-        const safeId = tag.replace(/[^\w-]/g, "_"); // valid ID
-        const readableLabel = tag === "Squatter_Wars"
-        ? `"Squatter Wars"` // ← Double quotes around label only
-        : tag.replace(/_/g, " ");
-
-        const checkbox = document.createElement("input");
-        checkbox.type = "checkbox";
-        checkbox.id = `tag-${safeId}`;
-        checkbox.dataset.tag = tag;
-
-        const label = document.createElement("label");
-        label.style.display = "block";
-        label.style.margin = "2px 0";
-        label.appendChild(checkbox);
-        label.append(` ${readableLabel}`);
-
-        tagContainer.appendChild(label);
-
-        checkbox.addEventListener("change", updatePhotoLayerFilter);
+        const safeId = tag.replace(/[^\w-]/g, "_");
+        const checkbox = document.getElementById(`tag-${safeId}`);
+        if (checkbox && checkbox.checked) {
+          selectedTags.push(tag);
+        }
       });
 
-      function updatePhotoLayerFilter() {
-        const selectedTags = [];
-
-        photoTagFields.forEach(tag => {
-          const safeId = tag.replace(/[^\w-]/g, "_");
-          const checkbox = document.getElementById(`tag-${safeId}`);
-          if (checkbox && checkbox.checked) {
-            selectedTags.push(tag);
-          }
+      if (selectedTags.length === 0) {
+        // No filter — show all features
+        map.setFilter("photos-layer", null);
+      } else {
+        // Filter: selected tag fields equal to "x"
+        const filters = ["all"];
+        selectedTags.forEach(tag => {
+          filters.push(["==", ["get", tag], "x"]);
         });
-
-        if (selectedTags.length === 0) {
-          // No filter — show all features
-          map.setFilter("photos-layer", null);
-        } else {
-          // Filter: selected tag fields equal to "x"
-          const filters = ["all"];
-          selectedTags.forEach(tag => {
-            filters.push(["==", ["get", tag], "x"]);
-          });
-          map.setFilter("photos-layer", filters);
-        }
+        map.setFilter("photos-layer", filters);
       }
+    }
+  </script>
+</body>
 
-    </script>
-  </body>
 </html>
