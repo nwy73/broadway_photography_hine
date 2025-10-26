@@ -773,9 +773,18 @@
      */
     async function openOverlayStable() {
       overlay.style.display = "flex";
-      // Removing page scrollbars can change viewport height; wait for layout to settle
       document.documentElement.style.overflow = "hidden";
-      overlay.getBoundingClientRect(); // force style & layout flush
+
+      // ✅ Try to enter fullscreen mode when opening the overlay
+      if (overlay.requestFullscreen) {
+        try {
+          await overlay.requestFullscreen();
+        } catch (err) {
+          console.warn("Fullscreen request failed:", err);
+        }
+      }
+
+      overlay.getBoundingClientRect(); // force layout flush
       await raf();
       await raf(); // 2 frames => stable measurements
     }
@@ -948,9 +957,19 @@
     });
 
     // Close the overlay, restore page scroll, and re-open the map popup
-    document.getElementById("overlay-close-btn").addEventListener("click", () => {
+    document.getElementById("overlay-close-btn").addEventListener("click", async () => {
       overlay.style.display = "none";
-      document.documentElement.style.overflow = ""; // restore scroll
+      document.documentElement.style.overflow = "";
+
+      // ✅ Exit fullscreen mode if active
+      if (document.fullscreenElement) {
+        try {
+          await document.exitFullscreen();
+        } catch (err) {
+          console.warn("Failed to exit fullscreen:", err);
+        }
+      }
+
       pz.reset();
       containReleased = false;
       zoomMapToCurrentAndShowPopup();
