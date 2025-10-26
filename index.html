@@ -965,6 +965,8 @@
       if (document.fullscreenElement) {
         try {
           await document.exitFullscreen();
+          // Wait 2 frames for map container resize to settle
+          await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
         } catch (err) {
           console.warn("Failed to exit fullscreen:", err);
         }
@@ -972,6 +974,8 @@
 
       pz.reset();
       containReleased = false;
+
+      // ✅ Now it’s safe to re-center the map + show popup
       zoomMapToCurrentAndShowPopup();
     });
 
