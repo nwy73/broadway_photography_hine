@@ -561,7 +561,8 @@
     const map = new maplibregl.Map({
       container: "map",
       style: "assets/styles/style.json",
-      center: [-73.96, 40.79],
+      //center: [-73.96, 40.79],
+      center: [-73.92, 40.79],
       zoom: 11,
     });
     map.addControl(new maplibregl.NavigationControl(), "top-left");
@@ -1596,51 +1597,42 @@
 
     photoTagFields.forEach(tag => {
       const safeId = tag.replace(/[^\w-]/g, "_"); // valid ID
-      const readableLabel = tag === "Squatter_Wars" ?
-        `"Squatter Wars"` // ← Double quotes around label only
-        :
-        tag.replace(/_/g, " ");
+      const readableLabel = tag === "Squatter_Wars"
+        ? `"Squatter Wars"`
+        : tag.replace(/_/g, " ");
 
-      const checkbox = document.createElement("input");
-      checkbox.type = "checkbox";
-      checkbox.id = `tag-${safeId}`;
-      checkbox.dataset.tag = tag;
+      const input = document.createElement("input");
+      input.type = "radio";
+      input.name = "photo-tag"; // all share this name
+      input.id = `tag-${safeId}`;
+      input.dataset.tag = tag;
 
       const label = document.createElement("label");
       label.style.display = "block";
       label.style.margin = "2px 0";
-      label.appendChild(checkbox);
+      label.appendChild(input);
       label.append(` ${readableLabel}`);
 
       tagContainer.appendChild(label);
 
-      checkbox.addEventListener("change", updatePhotoLayerFilter);
+      input.addEventListener("change", updatePhotoLayerFilter);
     });
 
     function updatePhotoLayerFilter() {
-      const selectedTags = [];
+      const selected = document.querySelector('input[name="photo-tag"]:checked');
+      const selectedTag = selected?.dataset.tag;
 
-      photoTagFields.forEach(tag => {
-        const safeId = tag.replace(/[^\w-]/g, "_");
-        const checkbox = document.getElementById(`tag-${safeId}`);
-        if (checkbox && checkbox.checked) {
-          selectedTags.push(tag);
-        }
-      });
-
-      if (selectedTags.length === 0) {
-        // No filter — show all features
+      if (!selectedTag) {
+        // “All Photos” selected — show everything
         map.setFilter("photos-layer", null);
       } else {
-        // Filter: selected tag fields equal to "x"
-        const filters = ["all"];
-        selectedTags.forEach(tag => {
-          filters.push(["==", ["get", tag], "x"]);
-        });
-        map.setFilter("photos-layer", filters);
+        // Only show features where that tag === "x"
+        map.setFilter("photos-layer", ["==", ["get", selectedTag], "x"]);
       }
+
       rebuildNavList();
     }
+
   </script>
 </body>
 
