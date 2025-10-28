@@ -1601,6 +1601,25 @@
           setVisibility(["broadway-layer", "broadway-history-layer"], true);
         }
       });
+
+      // --- Auto-zoom and open popup on first feature ---
+      map.once("idle", () => {
+        const src = map.getSource("photos");
+        if (!src || !src._data || !src._data.features.length) return;
+
+        // Use the first photo feature
+        photoFeatures = src._data.features;
+        rebuildNavList();
+
+        currentPhotoIndex = 0;
+        navPhotoFeatures = photoFeatures.slice();
+        idToNavIndex.clear();
+        navPhotoFeatures.forEach((f, i) => idToNavIndex.set(f.id, i));
+
+        // Center map and open popup
+        zoomMapToCurrentAndShowPopup();
+      });
+
     });
 
     /* =====================================================
