@@ -143,6 +143,18 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      height: 100%;
+      overflow: hidden;
+    }
+
+    #photo-description {
+      overflow-y: auto;
+      /* scroll vertically if content is too tall */
+      max-height: 50%;
+      /* adjust how much height it can take */
+      margin-top: 8px;
+      font-size: 0.9em;
+      color: #333;
     }
 
     #overlay-title {
@@ -446,6 +458,7 @@
     ============================= -->
   <script src="https://unpkg.com/maplibre-gl@^5.6.2/dist/maplibre-gl.js"></script>
   <script src="https://unpkg.com/@panzoom/panzoom/dist/panzoom.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <script>
     /* =====================================================
          DOM references
@@ -932,6 +945,75 @@
       historic.style.opacity = 1;
       rephoto.style.opacity = 0;
 
+      // --- 🔽 ADD THIS SECTION TO HANDLE DESCRIPTIONS FROM CSV ---
+      try {
+        // Fetch and parse CSV if not already loaded
+        if (!window.imageDescriptions) {
+          window.imageDescriptions = await loadDescriptions();
+        }
+
+        console.log("🔍 fullUrl:", fullUrl);
+
+        // Extract image number from URL, e.g., "img/full/img_1.jpg" -> "1"
+        const match = fullUrl.match(/img\/full\/img_(\d+)\.jpg/);
+        const imageId = match ? match[1] : null;
+        console.log("🆔 Extracted imageId:", imageId);
+
+        console.log("📋 CSV data sample:", window.imageDescriptions?.slice(0, 5));
+
+        // Find description by matching number at start of title in CSV
+        const descriptionObj = window.imageDescriptions.find(item => {
+          const numMatch = item.title.match(/^"?(\d+)/); // leading number
+          return numMatch && numMatch[1] === imageId;
+        });
+        console.log("🎯 Matched description object:", descriptionObj);
+
+        // Update or insert description div
+        let descDiv = document.getElementById("photo-description");
+        if (!descDiv) {
+          descDiv = document.createElement("div");
+          descDiv.id = "photo-description";
+          descDiv.style.marginTop = "8px";
+          descDiv.style.overflowY = "auto"; // allow scrolling if needed
+          descDiv.style.maxHeight = "40vh"; // adjust as desired
+          descDiv.style.fontSize = "0.9em";
+          descDiv.style.color = "#333";
+
+          const dissolveSlider = document.getElementById("dissolve-slider");
+          if (dissolveSlider) {
+            dissolveSlider.insertAdjacentElement("afterend", descDiv);
+          } else {
+            console.warn("⚠️ dissolve-slider not found; cannot insert description in correct order.");
+            document.getElementById("overlay-sidebar")?.appendChild(descDiv);
+          }
+        }
+
+        // Build description HTML
+        let html = "";
+        if (descriptionObj) {
+          html += `<p>${descriptionObj.description}</p>`;
+        } else {
+          console.warn(`⚠️ No matching description found for ID ${imageId}`);
+          html += `<p>No description available.</p>`;
+        }
+
+        // Always append book link
+        html += `
+    <p style="margin-top: 8px; color: #555; font-size: 0.9em;">
+      This has been abridged from the essay in the book.
+      <a href="https://skyscrapertowildflower.com/ordering-the-book/" target="_blank" rel="noopener noreferrer">
+        Order a copy here.
+      </a>
+    </p>
+  `;
+
+        descDiv.innerHTML = html;
+
+      } catch (err) {
+        console.error("Error loading image description:", err);
+      }
+      // --- 🔼 END DESCRIPTION SECTION ---
+
       // 1) Open overlay and let layout settle
       await openOverlayStable();
 
@@ -948,6 +1030,17 @@
       sizeWrapperToContainerBox();
       resetToFit();
       nudgeToImageRect();
+    }
+
+    /** Helper function to parse a basic CSV into objects */
+    async function loadDescriptions() {
+      const response = await fetch("overlays/img_descriptions.csv");
+      const csvText = await response.text();
+      const parsed = Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true,
+      });
+      return parsed.data;
     }
 
     /* =====================================================
