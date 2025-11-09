@@ -383,8 +383,8 @@
       <div id="layer-checkboxes">
         <!-- Other layer checkboxes -->
         <label class="layer-checkbox">
-          <input type="checkbox" id="photo-toggle" checked/> Photos
-        </label>         
+          <input type="checkbox" id="photo-toggle" checked /> Photos
+        </label>
         <label class="layer-checkbox">
           <input type="checkbox" id="broadway-toggle" checked /> Broadway
         </label>
@@ -990,7 +990,14 @@
         // Build description HTML
         let html = "";
         if (descriptionObj) {
-          html += `<p>${descriptionObj.description}</p>`;
+          // Convert escaped "\n" sequences into real paragraph breaks
+          let formattedDescription = descriptionObj.description
+            .replace(/\\n/g, '\n')                      // make sure literal \n becomes a newline
+            .split(/\n\s*\n*/)                         // split on one or more newlines
+            .map(p => `<p>${p.trim()}</p>`)            // wrap each paragraph in <p>
+            .join('\n');                               // join them back
+
+          html += formattedDescription;
         } else {
           console.warn(`⚠️ No matching description found for ID ${imageId}`);
           html += `<p>No description available.</p>`;
@@ -1735,9 +1742,9 @@
 
     photoTagFields.forEach(tag => {
       const safeId = tag.replace(/[^\w-]/g, "_"); // valid ID
-      const readableLabel = tag === "Squatter_Wars"
-        ? `"Squatter Wars"`
-        : tag.replace(/_/g, " ");
+      const readableLabel = tag === "Squatter_Wars" ?
+        `"Squatter Wars"` :
+        tag.replace(/_/g, " ");
 
       const input = document.createElement("input");
       input.type = "radio";
@@ -1770,7 +1777,6 @@
 
       rebuildNavList();
     }
-
   </script>
 </body>
 

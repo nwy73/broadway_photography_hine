@@ -991,7 +991,14 @@
         // Build description HTML
         let html = "";
         if (descriptionObj) {
-          html += `<p>${descriptionObj.description}</p>`;
+          // Convert escaped "\n" sequences into real paragraph breaks
+          let formattedDescription = descriptionObj.description
+            .replace(/\\n/g, '\n')                      // make sure literal \n becomes a newline
+            .split(/\n\s*\n*/)                         // split on one or more newlines
+            .map(p => `<p>${p.trim()}</p>`)            // wrap each paragraph in <p>
+            .join('\n');                               // join them back
+
+          html += formattedDescription;
         } else {
           console.warn(`⚠️ No matching description found for ID ${imageId}`);
           html += `<p>No description available.</p>`;
