@@ -823,6 +823,8 @@
     ====================================================== */
     map.on("load", async () => {
 
+      console.log("This is the new map!");
+
       // When the photos source finishes, cache features for indexing
       map.on("sourcedata", (e) => {
         if (
