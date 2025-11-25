@@ -418,6 +418,18 @@
     zoomOutBtn.addEventListener("click", () => zoomBy(1 / 1.25));
     zoomResetBtn.addEventListener("click", () => { enforceContain(); resetToFit(); });
 
+    function enterFullscreenSafely() {
+      if (document.fullscreenElement) return;
+
+      const target = overlay; // ✅ fullscreen the overlay, not the whole doc
+
+      if (target.requestFullscreen) {
+        target.requestFullscreen().catch(err => {
+          console.warn("Fullscreen request failed:", err);
+        });
+      }
+    }
+
     /* =====================================================
        Map setup
     ====================================================== */
@@ -554,12 +566,10 @@
       overlay.style.display = "flex";
       document.documentElement.style.overflow = "hidden";
 
-      if (overlay.requestFullscreen) {
-        try { await overlay.requestFullscreen(); }
-        catch (err) { console.warn("Fullscreen request failed:", err); }
-      }
+      // Let layout settle before measuring
       overlay.getBoundingClientRect();
-      await raf(); await raf();
+      await raf();
+      await raf();
     }
 
     async function waitImageReady(img) {
@@ -584,6 +594,11 @@
         boxShadow: "2px 2px 6px rgba(0,0,0,0.1)",
       });
 
+      // ✅ Stop any clicks inside the popup from reaching the map
+      popupContainer.addEventListener("click", (e) => {
+        e.stopPropagation();
+      });
+
       const img = new Image();
       img.src = thumbUrl;
       Object.assign(img.style, {
@@ -591,29 +606,30 @@
         height: "auto",
         borderRadius: "4px",
         cursor: fullUrl ? "pointer" : "default",
+        display: "block"
       });
 
-      img.onload = () => {
-        popupContainer.appendChild(img);
-        if (fullUrl && typeof onThumbClick === "function") {
-          img.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onThumbClick();
-          });
-        }
-
-        const titleDiv = document.createElement("div");
-        Object.assign(titleDiv.style, {
-          marginTop: "4px",
-          fontSize: "12px",
-          color: "#333",
-          wordWrap: "break-word",
-          overflowWrap: "break-word",
+      // ✅ Bind click handler immediately so first click always works
+      if (fullUrl && typeof onThumbClick === "function") {
+        img.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onThumbClick();
         });
-        titleDiv.textContent = '"' + title + '"' || "";
-        popupContainer.appendChild(titleDiv);
-      };
+      }
+
+      popupContainer.appendChild(img);
+
+      const titleDiv = document.createElement("div");
+      Object.assign(titleDiv.style, {
+        marginTop: "4px",
+        fontSize: "12px",
+        color: "#333",
+        wordWrap: "break-word",
+        overflowWrap: "break-word",
+      });
+      titleDiv.textContent = title ? `"${title}"` : "";
+      popupContainer.appendChild(titleDiv);
 
       return popupContainer;
     }
@@ -633,6 +649,8 @@
         fullUrl: feature.properties.full || "",
         title: feature.properties.title || "",
         onThumbClick: () => {
+          enterFullscreenSafely();
+
           if (window.currentPopup) {
             window.currentPopup.remove();
             window.currentPopup = null;
@@ -804,17 +822,6 @@
        Map content
     ====================================================== */
     map.on("load", async () => {
-      map.on("sourcedata", (e) => {
-        if (
-          e.sourceId === "photos" &&
-          e.isSourceLoaded &&
-          map.getSource("photos") &&
-          map.getSource("photos")._data
-        ) {
-          photoFeatures = map.getSource("photos")._data.features || [];
-          rebuildNavList();
-        }
-      });
 
       // When the photos source finishes, cache features for indexing
       map.on("sourcedata", (e) => {
@@ -823,7 +830,7 @@
           e.isSourceLoaded &&
           map.getSource("photos")
         ) {
-          // ✅ Get features safely from querySourceFeatures (public API)
+          // Get features safely from querySourceFeatures (public API)
           const feats = map.querySourceFeatures("photos");
           if (!feats.length) return;
 
@@ -837,7 +844,7 @@
 
           rebuildNavList();
 
-          // ✅ Auto-zoom only once
+          // Auto-zoom only once
           if (currentPhotoIndex === -1 && photoFeatures.length) {
             currentPhotoIndex = 0;
             zoomMapToCurrentAndShowPopup();
@@ -1121,10 +1128,14 @@
         const popupDom = buildPhotoPopupDom({
           thumbUrl, fullUrl, title,
           onThumbClick: () => {
+            // Must be synchronous to count as a user gesture
+            enterFullscreenSafely();
+
             if (window.currentPopup) {
               window.currentPopup.remove();
               window.currentPopup = null;
             }
+
             requestAnimationFrame(() => {
               requestAnimationFrame(() => updateOverlayByIndex(currentPhotoIndex));
             });
@@ -1137,6 +1148,11 @@
           .addTo(map);
 
         window.currentPopup = popup;
+
+        map.once("click", () => {
+          // no-op; this just consumes one click cycle after popup open
+        });
+
       });
 
       /* Layer toggles */
