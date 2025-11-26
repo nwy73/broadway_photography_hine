@@ -30,14 +30,16 @@
       font-display: swap;
     }
 
-    html, body {
+    html,
+    body {
       margin: 0;
       padding: 0;
       height: 100%;
       background: var(--bg);
     }
 
-    #map-container, #map {
+    #map-container,
+    #map {
       position: absolute;
       inset: 0;
     }
@@ -59,7 +61,8 @@
       gap: 20px;
     }
 
-    #opacity-labels, #slider-container label {
+    #opacity-labels,
+    #slider-container label {
       font-size: 0.9em;
       color: var(--ink-muted);
     }
@@ -176,8 +179,15 @@
       -webkit-user-drag: none;
     }
 
-    #historic-image { z-index: 1; opacity: 1; }
-    #rephoto-image { z-index: 2; opacity: 0; }
+    #historic-image {
+      z-index: 1;
+      opacity: 1;
+    }
+
+    #rephoto-image {
+      z-index: 2;
+      opacity: 0;
+    }
 
     #overlay-close-btn {
       position: absolute;
@@ -196,7 +206,9 @@
       z-index: 9000;
     }
 
-    #overlay-close-btn:hover { background-color: #fff; }
+    #overlay-close-btn:hover {
+      background-color: #fff;
+    }
 
     #fullscreen-overlay label[for="dissolve-slider"] {
       font-size: 12px;
@@ -205,7 +217,9 @@
     }
 
     @media (prefers-reduced-motion: reduce) {
-      #rephoto-wrap img { transition: none; }
+      #rephoto-wrap img {
+        transition: none;
+      }
     }
 
     #zoom-controls {
@@ -227,7 +241,9 @@
       box-shadow: 2px 2px 6px rgba(0, 0, 0, 0.1);
     }
 
-    #zoom-controls button:hover { background: #fff; }
+    #zoom-controls button:hover {
+      background: #fff;
+    }
 
     #layer-toggle {
       font-family: "Fraunces", serif;
@@ -244,7 +260,7 @@
       margin: 0;
     }
 
-    #layer-checkboxes > label {
+    #layer-checkboxes>label {
       display: block;
       padding-left: 1.5em;
       font-size: 0.95em;
@@ -300,8 +316,7 @@
       <div id="overlay-sidebar">
         <div id="overlay-title">Photo Title Placeholder</div>
 
-        <div id="overlay-navigation"
-          style="display: flex; gap: 12px; align-items: center; font-size: 12px; color: #555; cursor: pointer;">
+        <div id="overlay-navigation" style="display: flex; gap: 12px; align-items: center; font-size: 12px; color: #555; cursor: pointer;">
           <div style="display: flex; align-items: center; gap: 4px;">
             <span id="prev-label">Previous</span>
             <button id="prev-btn" aria-label="Previous photo">&larr;</button>
@@ -362,27 +377,42 @@
     const zoomOutBtn = document.getElementById("zoom-out");
     const zoomResetBtn = document.getElementById("zoom-reset");
 
+    ["prev-btn", "next-btn", "prev-label", "next-label"].forEach(id => {
+      const el = document.getElementById(id);
+      el.addEventListener("click", e => e.stopPropagation());
+      el.addEventListener("pointerdown", e => e.stopPropagation());
+    });
+
     /* =====================================================
        Panzoom
     ====================================================== */
-    const pz = Panzoom(wrapper, { maxScale: 4, contain: "inside" });
+    const pz = Panzoom(wrapper, {
+      maxScale: 4,
+      contain: "inside"
+    });
     let containReleased = false;
 
     const enforceContain = () => {
       containReleased = false;
-      pz.setOptions({ contain: "inside" });
+      pz.setOptions({
+        contain: "inside"
+      });
     };
     const releaseContain = () => {
       if (containReleased) return;
       containReleased = true;
-      pz.setOptions({ contain: false });
+      pz.setOptions({
+        contain: false
+      });
     };
 
     wrapper.addEventListener("wheel", (e) => {
       e.preventDefault();
       releaseContain();
       pz.zoomWithWheel(e);
-    }, { passive: false });
+    }, {
+      passive: false
+    });
 
     wrapper.addEventListener("pointerdown", releaseContain);
 
@@ -405,18 +435,38 @@
       const next = clamp(current * factor, MIN_SCALE, MAX_SCALE);
 
       const rect = container.getBoundingClientRect();
-      const point = { clientX: rect.left + rect.width / 2, clientY: rect.top + rect.height / 2 };
+      const point = {
+        clientX: rect.left + rect.width / 2,
+        clientY: rect.top + rect.height / 2
+      };
 
       if (typeof pz.zoomToPoint === "function") {
         pz.zoomToPoint(next, point);
       } else if (typeof pz.zoom === "function") {
-        pz.zoom(next, { animate: true });
+        pz.zoom(next, {
+          animate: true
+        });
       }
     }
 
     zoomInBtn.addEventListener("click", () => zoomBy(1.25));
     zoomOutBtn.addEventListener("click", () => zoomBy(1 / 1.25));
-    zoomResetBtn.addEventListener("click", () => { enforceContain(); resetToFit(); });
+    zoomResetBtn.addEventListener("click", () => {
+      enforceContain();
+      resetToFit();
+    });
+
+    function enterFullscreenSafely() {
+      if (document.fullscreenElement) return;
+
+      const target = overlay; // fullscreen the overlay, not the whole doc
+
+      if (target.requestFullscreen) {
+        target.requestFullscreen().catch(err => {
+          console.warn("Fullscreen request failed:", err);
+        });
+      }
+    }
 
     /* =====================================================
        Map setup
@@ -436,6 +486,8 @@
     // Nav state: ALWAYS derived from photoFeatures now
     let navPhotoFeatures = [];
     const idToNavIndex = new Map();
+
+    let navBusy = false; // <— add here
 
     function updateNavUiEnabledState() {
       const has = navPhotoFeatures.length > 0;
@@ -492,7 +544,9 @@
       const response = await fetch(url);
       const svgText = await response.text();
       const img = new Image();
-      const svgBlob = new Blob([svgText], { type: "image/svg+xml" });
+      const svgBlob = new Blob([svgText], {
+        type: "image/svg+xml"
+      });
       const urlObj = URL.createObjectURL(svgBlob);
 
       return new Promise((resolve, reject) => {
@@ -508,7 +562,9 @@
           const ctx = canvas.getContext("2d");
           ctx.drawImage(img, 0, 0, size, size);
           const bitmap = await createImageBitmap(canvas);
-          if (!map.hasImage(name)) map.addImage(name, bitmap, { pixelRatio: 1 });
+          if (!map.hasImage(name)) map.addImage(name, bitmap, {
+            pixelRatio: 1
+          });
           URL.revokeObjectURL(urlObj);
           resolve();
         };
@@ -518,12 +574,21 @@
     }
 
     function filterByYear(year) {
-      if (!originalGeoJsonData) return { type: "FeatureCollection", features: [] };
+      if (!originalGeoJsonData) return {
+        type: "FeatureCollection",
+        features: []
+      };
       const features = originalGeoJsonData.features.filter((f) => {
-        const { syear, eyear } = f.properties;
+        const {
+          syear,
+          eyear
+        } = f.properties;
         return year >= syear && year <= eyear;
       });
-      return { type: "FeatureCollection", features };
+      return {
+        type: "FeatureCollection",
+        features
+      };
     }
 
     function sizeWrapperToContainerBox() {
@@ -534,16 +599,25 @@
     }
 
     function resetToFit() {
-      pz.setOptions({ minScale: 1 });
+      pz.setOptions({
+        minScale: 1
+      });
       if (typeof pz.reset === "function") {
-        pz.reset({ animate: false });
+        pz.reset({
+          animate: false
+        });
       } else {
-        if (typeof pz.zoom === "function") pz.zoom(1, { animate: false });
-        if (typeof pz.pan === "function") pz.pan(0, 0, { animate: false });
+        if (typeof pz.zoom === "function") pz.zoom(1, {
+          animate: false
+        });
+        if (typeof pz.pan === "function") pz.pan(0, 0, {
+          animate: false
+        });
       }
     }
 
-    function nudgeToImageRect() { /* no-op */ }
+    function nudgeToImageRect() {
+      /* no-op */ }
 
     function centerNow() {
       sizeWrapperToContainerBox();
@@ -554,24 +628,31 @@
       overlay.style.display = "flex";
       document.documentElement.style.overflow = "hidden";
 
-      if (overlay.requestFullscreen) {
-        try { await overlay.requestFullscreen(); }
-        catch (err) { console.warn("Fullscreen request failed:", err); }
-      }
+      // Let layout settle before measuring
       overlay.getBoundingClientRect();
-      await raf(); await raf();
+      await raf();
+      await raf();
     }
 
     async function waitImageReady(img) {
       if (img.decode) {
-        try { await img.decode(); } catch {}
+        try {
+          await img.decode();
+        } catch {}
       } else if (!img.complete) {
-        await new Promise((res) => img.addEventListener("load", res, { once: true }));
+        await new Promise((res) => img.addEventListener("load", res, {
+          once: true
+        }));
       }
       await raf();
     }
 
-    function buildPhotoPopupDom({ thumbUrl, fullUrl, title, onThumbClick }) {
+    function buildPhotoPopupDom({
+      thumbUrl,
+      fullUrl,
+      title,
+      onThumbClick
+    }) {
       const popupContainer = document.createElement("div");
       Object.assign(popupContainer.style, {
         maxWidth: "300px",
@@ -584,6 +665,11 @@
         boxShadow: "2px 2px 6px rgba(0,0,0,0.1)",
       });
 
+      // stop any clicks inside the popup from reaching the map
+      popupContainer.addEventListener("click", (e) => {
+        e.stopPropagation();
+      });
+
       const img = new Image();
       img.src = thumbUrl;
       Object.assign(img.style, {
@@ -591,29 +677,30 @@
         height: "auto",
         borderRadius: "4px",
         cursor: fullUrl ? "pointer" : "default",
+        display: "block"
       });
 
-      img.onload = () => {
-        popupContainer.appendChild(img);
-        if (fullUrl && typeof onThumbClick === "function") {
-          img.addEventListener("click", (e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            onThumbClick();
-          });
-        }
-
-        const titleDiv = document.createElement("div");
-        Object.assign(titleDiv.style, {
-          marginTop: "4px",
-          fontSize: "12px",
-          color: "#333",
-          wordWrap: "break-word",
-          overflowWrap: "break-word",
+      // bind click handler immediately so first click always works
+      if (fullUrl && typeof onThumbClick === "function") {
+        img.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          onThumbClick();
         });
-        titleDiv.textContent = '"' + title + '"' || "";
-        popupContainer.appendChild(titleDiv);
-      };
+      }
+
+      popupContainer.appendChild(img);
+
+      const titleDiv = document.createElement("div");
+      Object.assign(titleDiv.style, {
+        marginTop: "4px",
+        fontSize: "12px",
+        color: "#333",
+        wordWrap: "break-word",
+        overflowWrap: "break-word",
+      });
+      titleDiv.textContent = title ? `"${title}"` : "";
+      popupContainer.appendChild(titleDiv);
 
       return popupContainer;
     }
@@ -633,6 +720,8 @@
         fullUrl: feature.properties.full || "",
         title: feature.properties.title || "",
         onThumbClick: () => {
+          enterFullscreenSafely();
+
           if (window.currentPopup) {
             window.currentPopup.remove();
             window.currentPopup = null;
@@ -641,7 +730,10 @@
         },
       });
 
-      const popup = new maplibregl.Popup({ offset: 15, closeOnClick: true })
+      const popup = new maplibregl.Popup({
+          offset: 15,
+          closeOnClick: true
+        })
         .setLngLat(feature.geometry.coordinates)
         .setDOMContent(popupDom)
         .addTo(map);
@@ -650,103 +742,136 @@
     }
 
     async function updateOverlayByIndex(index) {
-      if (index < 0 || index >= navPhotoFeatures.length) return;
-
-      const feature = navPhotoFeatures[index];
-      currentPhotoIndex = index;
-
-      pz.reset();
-      containReleased = false;
-      enforceContain();
-
-      const fullUrl = feature.properties.full || "";
-      if (!fullUrl) return;
-
-      const title = feature.properties.title || "";
-      historic.src = fullUrl;
-      rephoto.src = "img/rephotos/" + fullUrl.split("/").pop();
-
-      const titleEl = document.getElementById("overlay-title");
-      titleEl.textContent = title;
-      if (!title.startsWith('"') && !title.endsWith('"')) {
-        titleEl.textContent = `"${title}"`;
-      }
-
-      dissolve.value = 0;
-      historic.style.opacity = 1;
-      rephoto.style.opacity = 0;
+      if (navBusy) return;
+      navBusy = true;
 
       try {
-        if (!window.imageDescriptions) {
-          window.imageDescriptions = await loadDescriptions();
+        if (index < 0 || index >= navPhotoFeatures.length) return;
+
+        const feature = navPhotoFeatures[index];
+        currentPhotoIndex = index;
+
+        pz.reset();
+        containReleased = false;
+        enforceContain();
+
+        const fullUrl = feature.properties.full || "";
+        if (!fullUrl) return;
+
+        const title = feature.properties.title || "";
+        historic.src = fullUrl;
+        rephoto.src = "img/rephotos/" + fullUrl.split("/").pop();
+
+        const titleEl = document.getElementById("overlay-title");
+        titleEl.textContent = title;
+        if (!title.startsWith('"') && !title.endsWith('"')) {
+          titleEl.textContent = `"${title}"`;
         }
 
-        const match = fullUrl.match(/img\/full\/img_(\d+)\.jpg/);
-        const imageId = match ? match[1] : null;
+        dissolve.value = 0;
+        historic.style.opacity = 1;
+        rephoto.style.opacity = 0;
 
-        const descriptionObj = window.imageDescriptions.find(item => {
-          const numMatch = item.title.match(/^"?(\d+)/);
-          return numMatch && numMatch[1] === imageId;
-        });
-
-        let descDiv = document.getElementById("photo-description");
-        if (!descDiv) {
-          descDiv = document.createElement("div");
-          descDiv.id = "photo-description";
-          descDiv.style.marginTop = "8px";
-          descDiv.style.overflowY = "auto";
-          descDiv.style.maxHeight = "100vh";
-          descDiv.style.fontSize = "0.9em";
-          descDiv.style.color = "#333";
-
-          const dissolveSlider = document.getElementById("dissolve-slider");
-          if (dissolveSlider) {
-            dissolveSlider.insertAdjacentElement("afterend", descDiv);
-          } else {
-            document.getElementById("overlay-sidebar")?.appendChild(descDiv);
+        try {
+          if (!window.imageDescriptions) {
+            window.imageDescriptions = await loadDescriptions();
           }
+
+          const match = fullUrl.match(/img\/full\/img_(\d+)\.jpg/);
+          const imageId = match ? match[1] : null;
+
+          const descriptionObj = window.imageDescriptions.find(item => {
+            const numMatch = item.title.match(/^"?(\d+)/);
+            return numMatch && numMatch[1] === imageId;
+          });
+
+          let descDiv = document.getElementById("photo-description");
+          if (!descDiv) {
+            descDiv = document.createElement("div");
+            descDiv.id = "photo-description";
+            descDiv.style.marginTop = "8px";
+            descDiv.style.overflowY = "auto";
+            descDiv.style.maxHeight = "100vh";
+            descDiv.style.fontSize = "0.9em";
+            descDiv.style.color = "#333";
+
+            const dissolveSlider = document.getElementById("dissolve-slider");
+            if (dissolveSlider) {
+              dissolveSlider.insertAdjacentElement("afterend", descDiv);
+            } else {
+              document.getElementById("overlay-sidebar")?.appendChild(descDiv);
+            }
+          }
+
+          let html = "";
+          html += descriptionObj ?
+            `<p>${descriptionObj.description}</p>` :
+            `<p>No description available.</p>`;
+
+          html += `
+        <p style="margin-top: 8px; color: #555; font-size: 0.9em;">
+          This has been abridged from the essay in the book.
+          <a href="https://skyscrapertowildflower.com/ordering-the-book/" target="_blank" rel="noopener noreferrer">
+            Order a copy here.
+          </a>
+        </p>
+      `;
+
+          descDiv.innerHTML = html;
+
+        } catch (err) {
+          console.error("Error loading image description:", err);
         }
 
-        let html = "";
-        if (descriptionObj) {
-          html += `<p>${descriptionObj.description}</p>`;
-        } else {
-          html += `<p>No description available.</p>`;
-        }
+        await openOverlayStable();
+        await waitImageReady(historic);
 
-        html += `
-          <p style="margin-top: 8px; color: #555; font-size: 0.9em;">
-            This has been abridged from the essay in the book.
-            <a href="https://skyscrapertowildflower.com/ordering-the-book/" target="_blank" rel="noopener noreferrer">
-              Order a copy here.
-            </a>
-          </p>
-        `;
+        sizeWrapperToContainerBox();
+        resetToFit();
+        nudgeToImageRect();
 
-        descDiv.innerHTML = html;
+        await raf();
+        sizeWrapperToContainerBox();
+        resetToFit();
+        nudgeToImageRect();
 
-      } catch (err) {
-        console.error("Error loading image description:", err);
+      } finally {
+        navBusy = false;
       }
-
-      await openOverlayStable();
-      await waitImageReady(historic);
-
-      sizeWrapperToContainerBox();
-      resetToFit();
-      nudgeToImageRect();
-
-      await raf();
-      sizeWrapperToContainerBox();
-      resetToFit();
-      nudgeToImageRect();
     }
 
     async function loadDescriptions() {
       const response = await fetch("overlays/img_descriptions.csv");
       const csvText = await response.text();
-      const parsed = Papa.parse(csvText, { header: true, skipEmptyLines: true });
+      const parsed = Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true
+      });
       return parsed.data;
+    }
+
+    function extractNumberFromFull(fullUrl) {
+      if (!fullUrl) return null;
+      const m = fullUrl.match(/img_(\d+)\.jpg/i);
+      return m ? parseInt(m[1], 10) : null;
+    }
+
+    function extractLeadingNumberFromTitle(title) {
+      if (!title) return null;
+      const m = String(title).match(/^"?(\d+)/); // handles optional leading quote
+      return m ? parseInt(m[1], 10) : null;
+    }
+
+    function getPhotoSortKey(f) {
+      const fullNum = extractNumberFromFull(f?.properties?.full);
+      if (Number.isFinite(fullNum)) return fullNum;
+
+      const titleNum = extractLeadingNumberFromTitle(f?.properties?.title);
+      if (Number.isFinite(titleNum)) return titleNum;
+
+      // last resort: numeric id if possible
+      const idNum = typeof f.id === "number" ? f.id : parseInt(f.id, 10);
+      return Number.isFinite(idNum) ? idNum : Number.MAX_SAFE_INTEGER;
     }
 
     /* =====================================================
@@ -800,50 +925,32 @@
       document.getElementById("next-btn").click();
     });
 
+    async function loadPhotosForNav(url, idPrefix = "photos") {
+      const data = await fetch(url).then(r => r.json());
+
+      return (data.features || []).map((f, i) => {
+        // pick a stable numeric key if present
+        const stableNum =
+          extractNumberFromFull(f?.properties?.full) ??
+          extractLeadingNumberFromTitle(f?.properties?.title) ??
+          i;
+
+        return {
+          type: "Feature",
+          // namespace so IDs can’t collide across layers
+          id: `${idPrefix}:${f.id ?? stableNum ?? i}`,
+          properties: f.properties || {},
+          geometry: f.geometry
+        };
+      });
+    }
+
     /* =====================================================
        Map content
     ====================================================== */
     map.on("load", async () => {
-      map.on("sourcedata", (e) => {
-        if (
-          e.sourceId === "photos" &&
-          e.isSourceLoaded &&
-          map.getSource("photos") &&
-          map.getSource("photos")._data
-        ) {
-          photoFeatures = map.getSource("photos")._data.features || [];
-          rebuildNavList();
-        }
-      });
 
-      // When the photos source finishes, cache features for indexing
-      map.on("sourcedata", (e) => {
-        if (
-          e.sourceId === "photos" &&
-          e.isSourceLoaded &&
-          map.getSource("photos")
-        ) {
-          // ✅ Get features safely from querySourceFeatures (public API)
-          const feats = map.querySourceFeatures("photos");
-          if (!feats.length) return;
-
-          // Normalize into plain GeoJSON features
-          photoFeatures = feats.map(f => ({
-            type: "Feature",
-            id: f.id,
-            properties: f.properties,
-            geometry: f.geometry
-          }));
-
-          rebuildNavList();
-
-          // ✅ Auto-zoom only once
-          if (currentPhotoIndex === -1 && photoFeatures.length) {
-            currentPhotoIndex = 0;
-            zoomMapToCurrentAndShowPopup();
-          }
-        }
-      }); 
+      console.log("This is the new map!");
 
       timeSlider.value = 1776;
       timeYear.textContent = "1776";
@@ -858,7 +965,9 @@
         id: "voyager-raster-layer",
         type: "raster",
         source: "voyager",
-        paint: { "raster-opacity": 0 },
+        paint: {
+          "raster-opacity": 0
+        },
       }, "paper-fibers-layer");
 
       fetch("overlays/Broadway_History.geojson")
@@ -866,12 +975,17 @@
         .then((data) => {
           originalGeoJsonData = data;
           const filtered = filterByYear(+timeSlider.value);
-          map.addSource("broadway-history", { type: "geojson", data: filtered });
+          map.addSource("broadway-history", {
+            type: "geojson",
+            data: filtered
+          });
           map.addLayer({
             id: "broadway-history-layer",
             type: "line",
             source: "broadway-history",
-            layout: { visibility: "visible" },
+            layout: {
+              visibility: "visible"
+            },
             paint: {
               "line-color": "#8B5E3C",
               "line-width": 3,
@@ -890,7 +1004,9 @@
         id: "neighborhoods-layer",
         type: "line",
         source: "neighborhoods",
-        layout: { visibility: "none" },
+        layout: {
+          visibility: "none"
+        },
         paint: {
           "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#D8A903", "#006399"],
           "line-width": ["case", ["boolean", ["feature-state", "hover"], false], 2, 0.5],
@@ -902,7 +1018,9 @@
         id: "neighborhoods-fill-layer",
         type: "fill",
         source: "neighborhoods",
-        layout: { visibility: "none" },
+        layout: {
+          visibility: "none"
+        },
         paint: {
           "fill-color": ["case", ["boolean", ["feature-state", "hover"], false], "#D8A903", "#006399"],
           "fill-opacity": ["case", ["boolean", ["feature-state", "hover"], false], 0.3, 0.0]
@@ -918,7 +1036,9 @@
         id: "indian-trails-layer",
         type: "line",
         source: "indian-trails",
-        layout: { visibility: "none" },
+        layout: {
+          visibility: "none"
+        },
         paint: {
           "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#D8A903", "#003153"],
           "line-width": 2,
@@ -940,7 +1060,9 @@
         id: "elevated-train-layer",
         type: "line",
         source: "elevated-train",
-        layout: { visibility: "none" },
+        layout: {
+          visibility: "none"
+        },
         paint: {
           "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#D8A903", "#A67B5B"],
           "line-width": 2,
@@ -950,7 +1072,9 @@
         id: "elevated-stations-layer",
         type: "circle",
         source: "elevated-stations",
-        layout: { visibility: "none" },
+        layout: {
+          visibility: "none"
+        },
         paint: {
           "circle-radius": 4,
           "circle-color": ["case", ["boolean", ["feature-state", "hover"], false], "#D8A903", "#4C6A72"],
@@ -972,7 +1096,9 @@
         id: "subway-lines-layer",
         type: "line",
         source: "subway-lines",
-        layout: { visibility: "none" },
+        layout: {
+          visibility: "none"
+        },
         paint: {
           "line-color": ["case", ["boolean", ["feature-state", "hover"], false], "#D8A903", "#732E2E"],
           "line-width": 2,
@@ -982,7 +1108,9 @@
         id: "subway-stations-layer",
         type: "circle",
         source: "subway-stations",
-        layout: { visibility: "none" },
+        layout: {
+          visibility: "none"
+        },
         paint: {
           "circle-radius": 4,
           "circle-color": ["case", ["boolean", ["feature-state", "hover"], false], "#D8A903", "#8A9A5B"],
@@ -1012,7 +1140,10 @@
       }
 
       function addHover(layerId, sourceId, nameProp) {
-        const hoverPopup = new maplibregl.Popup({ closeButton: false, closeOnClick: false });
+        const hoverPopup = new maplibregl.Popup({
+          closeButton: false,
+          closeOnClick: false
+        });
 
         map.on("mousemove", layerId, (e) => {
           if (!e.features.length) return;
@@ -1021,11 +1152,21 @@
           if (!key) return;
 
           if (hoverState[key] !== null) {
-            map.setFeatureState({ source: sourceId, id: hoverState[key] }, { hover: false });
+            map.setFeatureState({
+              source: sourceId,
+              id: hoverState[key]
+            }, {
+              hover: false
+            });
           }
 
           if (f.id !== undefined) {
-            map.setFeatureState({ source: sourceId, id: f.id }, { hover: true });
+            map.setFeatureState({
+              source: sourceId,
+              id: f.id
+            }, {
+              hover: true
+            });
             hoverState[key] = f.id;
           }
 
@@ -1041,7 +1182,12 @@
           hoverPopup.remove();
           const key = hoverKeyForLayer(layerId);
           if (hoverState[key] !== null) {
-            map.setFeatureState({ source: sourceId, id: hoverState[key] }, { hover: false });
+            map.setFeatureState({
+              source: sourceId,
+              id: hoverState[key]
+            }, {
+              hover: false
+            });
             hoverState[key] = null;
           }
         });
@@ -1057,9 +1203,25 @@
       /* Photos layer */
       await loadSVGAsImage("camera", "svg/camera.svg");
 
+      // 1) FETCH ONCE + INJECT nav_id  ✅ PUT YOUR BLOCK HERE
+      const photoData = await fetch("overlays/photo_tags/nature.geojson")
+        .then(r => r.json());
+
+      // add nav_id to each feature
+      photoData.features.forEach((f, i) => {
+        const stableNum =
+          extractNumberFromFull(f?.properties?.full) ??
+          extractLeadingNumberFromTitle(f?.properties?.title) ??
+          i;
+
+        f.properties.nav_id = `nature:${f.id ?? stableNum ?? i}`;
+      });
+
+      // 2) ADD SOURCE USING MODIFIED DATA + promoteId
       map.addSource("photos", {
         type: "geojson",
-        data: "overlays/photo_tags/nature.geojson"
+        data: photoData,
+        promoteId: "nav_id"   // critical: makes rendered feature.id = nav_id
       });
 
       map.addLayer({
@@ -1079,12 +1241,35 @@
         },
       });
 
+      // 3) BUILD NAV LIST FROM SAME MODIFIED DATA
+      photoFeatures = photoData.features.map(f => ({
+        type: "Feature",
+        id: f.properties.nav_id,   // matches MapLibre feature.id now
+        properties: f.properties || {},
+        geometry: f.geometry
+      }));
+
+      photoFeatures.sort((a,b) => getPhotoSortKey(a) - getPhotoSortKey(b));
+      rebuildNavList();
+
+      if (currentPhotoIndex === -1 && photoFeatures.length) {
+        currentPhotoIndex = 0;
+        zoomMapToCurrentAndShowPopup();
+      }
+
       let hoveredPhotoId = null;
       map.on("mousemove", "photos-layer", (e) => {
-        const fs = map.queryRenderedFeatures(e.point, { layers: ["photos-layer"] });
+        const fs = map.queryRenderedFeatures(e.point, {
+          layers: ["photos-layer"]
+        });
         if (!fs.length) {
           if (hoveredPhotoId !== null) {
-            map.setFeatureState({ source: "photos", id: hoveredPhotoId }, { hover: false });
+            map.setFeatureState({
+              source: "photos",
+              id: hoveredPhotoId
+            }, {
+              hover: false
+            });
             hoveredPhotoId = null;
           }
           map.getCanvas().style.cursor = "";
@@ -1093,16 +1278,31 @@
         const f = fs[0];
         if (hoveredPhotoId !== f.id) {
           if (hoveredPhotoId !== null)
-            map.setFeatureState({ source: "photos", id: hoveredPhotoId }, { hover: false });
+            map.setFeatureState({
+              source: "photos",
+              id: hoveredPhotoId
+            }, {
+              hover: false
+            });
           hoveredPhotoId = f.id;
-          map.setFeatureState({ source: "photos", id: hoveredPhotoId }, { hover: true });
+          map.setFeatureState({
+            source: "photos",
+            id: hoveredPhotoId
+          }, {
+            hover: true
+          });
         }
         map.getCanvas().style.cursor = "pointer";
       });
 
       map.on("mouseleave", "photos-layer", () => {
         if (hoveredPhotoId !== null) {
-          map.setFeatureState({ source: "photos", id: hoveredPhotoId }, { hover: false });
+          map.setFeatureState({
+            source: "photos",
+            id: hoveredPhotoId
+          }, {
+            hover: false
+          });
           hoveredPhotoId = null;
         }
         map.getCanvas().style.cursor = "";
@@ -1119,24 +1319,34 @@
         if (window.currentPopup) window.currentPopup.remove();
 
         const popupDom = buildPhotoPopupDom({
-          thumbUrl, fullUrl, title,
+          thumbUrl,
+          fullUrl,
+          title,
           onThumbClick: () => {
+            // Must be synchronous to count as a user gesture
+            enterFullscreenSafely();
+
             if (window.currentPopup) {
               window.currentPopup.remove();
               window.currentPopup = null;
             }
+
             requestAnimationFrame(() => {
               requestAnimationFrame(() => updateOverlayByIndex(currentPhotoIndex));
             });
           },
         });
 
-        const popup = new maplibregl.Popup({ offset: 15, closeOnClick: true })
+        const popup = new maplibregl.Popup({
+            offset: 15,
+            closeOnClick: true
+          })
           .setLngLat(feature.geometry.coordinates)
           .setDOMContent(popupDom)
           .addTo(map);
 
         window.currentPopup = popup;
+
       });
 
       /* Layer toggles */
@@ -1188,7 +1398,11 @@
         const style = map.getStyle();
         if (!style || !style.layers) return;
         style.layers.forEach((layer) => {
-          const { id, source, type } = layer;
+          const {
+            id,
+            source,
+            type
+          } = layer;
           if (source === "broadway") {
             const props = {};
             if (type === "fill") props["fill-opacity"] = map.getPaintProperty(id, "fill-opacity") ?? 1;
