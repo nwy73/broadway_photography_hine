@@ -10,21 +10,21 @@
     "paper": {
       "type": "raster",
       "tiles": [
-        "https://ui-libraries.github.io/broadway/assets/texture/paper-fibers.png"
+        "https://nwy73.github.io/broadway_photography_hine/assets/texture/paper-fibers.png"
       ],
       "tileSize": 512
     },
     "broadway": {
       "type": "vector",
       "tiles": [
-        "https://ui-libraries.github.io/broadway/tiles/{z}/{x}/{y}.pbf"
+        "https://nwy73.github.io/broadway_photography_hine/tiles/{z}/{x}/{y}.pbf"
       ],
       "minzoom": 0,
       "maxzoom": 11
     }
   },
   "sprite": "https://maputnik.github.io/osm-liberty/sprites/osm-liberty",
-  "glyphs": "https://ui-libraries.github.io/broadway/assets/glyphs/fonts/{fontstack}/{range}.pbf",
+  "glyphs": "https://nwy73.github.io/broadway_photography_hine/assets/glyphs/fonts/{fontstack}/{range}.pbf",
   "layers": [
     {
       "id": "paper-fibers-layer",
